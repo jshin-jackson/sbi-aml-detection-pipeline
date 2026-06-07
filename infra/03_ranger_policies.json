@@ -4,6 +4,34 @@
   "_user": "systest (모든 컴포넌트 단일 계정)",
   "policies": [
     {
+      "_comment": "Kafka: 토픽 생성/관리 권한 (kafka_setup.sh 실행용)",
+      "service": "cm_kafka",
+      "name": "aml-kafka-admin",
+      "isEnabled": true,
+      "isAuditEnabled": true,
+      "resources": {
+        "topic": {
+          "values": ["sbi-aml-transactions", "sbi-aml-alerts"],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "users": ["systest"],
+          "groups": [],
+          "accesses": [
+            {"type": "create",         "isAllowed": true},
+            {"type": "delete",         "isAllowed": true},
+            {"type": "configure",      "isAllowed": true},
+            {"type": "describe",       "isAllowed": true},
+            {"type": "describeConfigs","isAllowed": true},
+            {"type": "alterConfigs",   "isAllowed": true}
+          ]
+        }
+      ]
+    },
+    {
       "_comment": "Kafka: 거래 토픽 Producer 권한 (NiFi → Kafka)",
       "service": "cm_kafka",
       "name": "aml-kafka-producer",
