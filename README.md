@@ -147,7 +147,7 @@ python3 -c "import gssapi; print('gssapi OK')"
 # Python 3.9 + RHEL 9.6 x86_64 대상 바이너리 휠 다운로드
 # gssapi는 제외 (dnf로 설치했으므로)
 pip download \
-  --prefer-binary \
+  --only-binary=:all: \
   --platform manylinux_2_28_x86_64 \
   --python-version 39 \
   --implementation cp \
