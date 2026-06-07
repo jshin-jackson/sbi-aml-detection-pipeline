@@ -118,61 +118,45 @@ sbi-aml-detection-pipeline/
 
 ## Step 0 — Python 환경 구성 (Air-gapped)
 
-> **Air-gapped 환경**이므로 인터넷 연결 없이 패키지를 설치합니다.  
-> `gssapi`는 C 확장 라이브러리이므로 **dnf 시스템 패키지로 설치**하고,  
-> 나머지 패키지만 인터넷 머신에서 미리 다운로드합니다.
+> **핵심 원칙:** `pip download`는 반드시 클러스터와 **동일한 OS인 RHEL 9.6 Bastion 머신**에서 실행합니다.
+> macOS 등 다른 OS에서 실행하면 `sdv` 의존성인 `torch` wheel의 플랫폼 태그가 달라 설치가 실패합니다.
 
-### 클러스터 노드에서 (gssapi — dnf 설치)
+### RHEL 9.6 Bastion 머신에서 (인터넷 연결, 1회만)
 
 ```bash
-# Python 3.9 버전 확인 (RHEL 9.6 기본 내장)
-python3 --version   # Python 3.9.x 확인
+# Python 3.9 버전 확인
+python3 --version   # Python 3.9.x
 
-# gssapi / Kerberos 시스템 패키지 설치
-# (RHEL 내부 dnf 저장소 또는 로컬 ISO 저장소 사용)
-sudo dnf install -y python3-gssapi krb5-devel
+# 빌드 도구 + gssapi 시스템 패키지 설치
+sudo dnf install -y python3-gssapi krb5-devel gcc python3-devel
 
-# 시스템 패키지를 venv에서 함께 사용 (--system-site-packages)
+# venv 생성 (시스템 gssapi 공유)
 python3 -m venv --system-site-packages /tmp/aml-venv
 source /tmp/aml-venv/bin/activate
 pip install --upgrade pip
 
-# 설치 확인
-python3 -c "import gssapi; print('gssapi OK')"
-```
-
-### 인터넷 가능한 머신에서 (나머지 패키지 — 1회만)
-
-```bash
-# Python 3.9 + RHEL 9.6 x86_64 대상 바이너리 휠 다운로드
-# gssapi는 제외 (dnf로 설치했으므로)
-pip download \
-  --only-binary=:all: \
-  --platform manylinux_2_17_x86_64 \
-  --python-version 39 \
-  --implementation cp \
-  --abi cp39 \
-  -r data_gen/requirements.txt \
-  -d ./wheels/
-# manylinux_2_17 사용 이유:
-#   numpy 1.x / kafka-python 등은 manylinux_2_17 태그로 배포됨
-#   RHEL 9.6 (glibc 2.34) 에서 manylinux_2_17 wheel 실행 가능 (2.34 > 2.17)
-#   manylinux_2_28 로 지정하면 numpy 를 찾지 못해 오류 발생
+# 패키지 다운로드 (플랫폼 옵션 없이 — Bastion이 RHEL 9.6이므로 자동 일치)
+pip download -r data_gen/requirements.txt -d ./wheels/
 
 tar czf aml-wheels.tar.gz wheels/
 scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/
 ```
 
-### 클러스터 노드에서 (나머지 패키지 오프라인 설치)
+### 클러스터 노드에서 (오프라인 설치)
 
 ```bash
+# gssapi 시스템 패키지 설치
+sudo dnf install -y python3-gssapi krb5-devel
+
+# venv 생성 및 오프라인 설치
+python3 -m venv --system-site-packages /tmp/aml-venv
 source /tmp/aml-venv/bin/activate
 
 cd /tmp && tar xzf aml-wheels.tar.gz
 pip install --no-index --find-links=./wheels/ -r /path/to/data_gen/requirements.txt
 
 # 최종 확인
-python3 -c "import gssapi, kafka, sdv; print('All OK')"
+python3 -c "import gssapi, kafka, sdv, pandas, numpy; print('All OK')"
 ```
 
 > **이후 모든 python 명령은 venv 활성화 후 실행:**
