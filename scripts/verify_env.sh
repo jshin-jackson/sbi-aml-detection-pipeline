@@ -16,7 +16,6 @@ if [ ! -f "${ROOT_DIR}/config/env.conf" ]; then
   exit 1
 fi
 source "${ROOT_DIR}/config/env.conf"
-TRUSTSTORE_PW=$(cat "${TRUSTSTORE_PW_FILE}" 2>/dev/null || echo "")
 
 PASS=0
 FAIL=0
@@ -57,7 +56,7 @@ fi
 # ------------------------------------------------------------------
 section "3. Auto-TLS 인증서 파일 확인"
 # ------------------------------------------------------------------
-for cert_var in TRUSTSTORE_JKS TRUSTSTORE_PW_FILE INCLUSTER_TRUSTSTORE_JKS CA_PEM; do
+for cert_var in TRUSTSTORE_JKS INCLUSTER_TRUSTSTORE_JKS CA_PEM; do
   cert_path="${!cert_var}"
   if [ -f "${cert_path}" ]; then
     ok "${cert_var}: ${cert_path}"
@@ -67,9 +66,9 @@ for cert_var in TRUSTSTORE_JKS TRUSTSTORE_PW_FILE INCLUSTER_TRUSTSTORE_JKS CA_PE
 done
 
 if [ -z "${TRUSTSTORE_PW}" ]; then
-  fail "Truststore 패스워드 읽기 실패: ${TRUSTSTORE_PW_FILE}"
+  fail "TRUSTSTORE_PW 미설정 — config/env.conf에 TRUSTSTORE_PW 값을 입력하세요"
 else
-  ok "Truststore 패스워드 읽기 성공"
+  ok "TRUSTSTORE_PW 설정 확인"
 fi
 
 # ------------------------------------------------------------------

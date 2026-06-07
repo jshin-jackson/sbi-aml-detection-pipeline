@@ -60,10 +60,7 @@ def kinit():
 def render_sql(tpl_path: Path) -> str:
     """SQL 템플릿의 환경 변수를 실제 값으로 치환"""
     env = os.environ.copy()
-    # TRUSTSTORE_PW는 파일에서 읽어 환경 변수로 추가
-    pw_file = env.get("TRUSTSTORE_PW_FILE", "")
-    if pw_file and Path(pw_file).exists():
-        env["TRUSTSTORE_PW"] = Path(pw_file).read_text().strip()
+    # TRUSTSTORE_PW는 env.conf에서 직접 읽음 (이미 os.environ에 포함)
 
     result = subprocess.run(
         ["envsubst"],

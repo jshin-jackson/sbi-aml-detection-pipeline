@@ -13,7 +13,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR}/.."
 
 source "${ROOT_DIR}/config/env.conf"
-TRUSTSTORE_PW=$(cat "${TRUSTSTORE_PW_FILE}")
 export TRUSTSTORE_PW  # envsubst에서 사용하기 위해 export
 
 OUTPUT_DIR="/tmp/aml-ssb"

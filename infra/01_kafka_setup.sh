@@ -8,8 +8,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../config/env.conf"
 
-TRUSTSTORE_PW=$(cat "${TRUSTSTORE_PW_FILE}")
-
 echo ""
 echo "================================================================"
 echo " Kafka 토픽 생성 (ENV: ${ENV_NAME})"

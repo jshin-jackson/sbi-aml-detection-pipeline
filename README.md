@@ -180,7 +180,15 @@ SSB_HOST="https://실제-SSB호스트:18121"
 SSB_PASSWORD="실제-패스워드"
 IMPALA_HOST="실제-impala호스트"
 NIFI_HOST="https://실제-nifi호스트:8443"
+TRUSTSTORE_PW="실제-truststore-패스워드"    # ← 반드시 입력
 ```
+
+> **TRUSTSTORE_PW 확인 방법:**
+> ```bash
+> # CM 관리 노드에서 (sudo 필요)
+> sudo cat /var/lib/cloudera-scm-agent/agent-cert/cm-auto-global_truststore.pw
+> # 또는 Cloudera Manager UI → Administration → Security → Certificates
+> ```
 
 > **팁:** 호스트명은 Cloudera Manager → 서비스 → 인스턴스 탭에서 확인합니다.
 
