@@ -223,6 +223,7 @@ Ranger는 "누가 어떤 데이터에 접근할 수 있는지" 제어하는 보�
 
 | 서비스 | 정책 이름 | 대상 | 권한 |
 |--------|----------|------|------|
+| cm_kafka | aml-kafka-admin | `sbi-aml-*` 토픽 | create, delete, configure, describe |
 | cm_kafka | aml-kafka-producer | `sbi-aml-*` 토픽 | publish |
 | cm_kafka | aml-kafka-consumer | `sbi-aml-*` 토픽 | consume |
 | cm_kudu | aml-kudu-readwrite | `default.aml_*` 테이블 | read, write |
