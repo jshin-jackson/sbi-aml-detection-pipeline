@@ -19,9 +19,9 @@ echo "================================================================"
 kinit -kt "${KEYTAB}" "${PRINCIPAL}"
 echo "[Kerberos] kinit 완료: ${PRINCIPAL}"
 
-# SQL 파일의 ${KUDU_MASTERS} 변수를 실제 값으로 치환
+# SQL 파일의 ${KUDU_MASTERS} 변수를 실제 값으로 치환 (sed 사용 — gettext 불필요)
 RENDERED_SQL=$(mktemp /tmp/kudu-ddl-XXXXXX.sql)
-envsubst '${KUDU_MASTERS}' < "${SCRIPT_DIR}/02_kudu_ddl.sql" > "${RENDERED_SQL}"
+sed "s|\${KUDU_MASTERS}|${KUDU_MASTERS}|g" "${SCRIPT_DIR}/02_kudu_ddl.sql" > "${RENDERED_SQL}"
 
 cleanup() {
   rm -f "${RENDERED_SQL}"

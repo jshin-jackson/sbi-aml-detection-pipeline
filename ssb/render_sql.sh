@@ -13,7 +13,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR}/.."
 
 source "${ROOT_DIR}/config/env.conf"
-export TRUSTSTORE_PW  # envsubst에서 사용하기 위해 export
 
 OUTPUT_DIR="/tmp/aml-ssb"
 mkdir -p "${OUTPUT_DIR}"
@@ -25,11 +24,19 @@ echo " 출력 디렉토리: ${OUTPUT_DIR}"
 echo "================================================================"
 echo ""
 
-# 각 SQL 템플릿 렌더링
+# 각 SQL 템플릿 렌더링 (sed 사용 — gettext/envsubst 불필요)
 for tpl in "${SCRIPT_DIR}"/*.sql.tpl; do
   filename=$(basename "${tpl}" .tpl)
   output="${OUTPUT_DIR}/${filename}"
-  envsubst < "${tpl}" > "${output}"
+  sed \
+    -e "s|\${KAFKA_BROKERS}|${KAFKA_BROKERS}|g" \
+    -e "s|\${KAFKA_TOPIC_TXN}|${KAFKA_TOPIC_TXN}|g" \
+    -e "s|\${INCLUSTER_TRUSTSTORE_JKS}|${INCLUSTER_TRUSTSTORE_JKS}|g" \
+    -e "s|\${TRUSTSTORE_PW}|${TRUSTSTORE_PW}|g" \
+    -e "s|\${LARGE_CASH_THRESHOLD}|${LARGE_CASH_THRESHOLD}|g" \
+    -e "s|\${SMURFING_WINDOW_MIN}|${SMURFING_WINDOW_MIN}|g" \
+    -e "s|\${SMURFING_TXN_COUNT}|${SMURFING_TXN_COUNT}|g" \
+    "${tpl}" > "${output}"
   echo "  [OK] ${filename}"
 done
 

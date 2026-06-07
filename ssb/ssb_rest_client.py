@@ -58,18 +58,17 @@ def kinit():
 
 
 def render_sql(tpl_path: Path) -> str:
-    """SQL 템플릿의 환경 변수를 실제 값으로 치환"""
-    env = os.environ.copy()
-    # TRUSTSTORE_PW는 env.conf에서 직접 읽음 (이미 os.environ에 포함)
-
-    result = subprocess.run(
-        ["envsubst"],
-        input=tpl_path.read_text(encoding="utf-8"),
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    return result.stdout
+    """SQL 템플릿의 환경 변수를 실제 값으로 치환 (envsubst 불필요 — 순수 Python)"""
+    text = tpl_path.read_text(encoding="utf-8")
+    vars_to_replace = [
+        "KAFKA_BROKERS", "KAFKA_TOPIC_TXN",
+        "INCLUSTER_TRUSTSTORE_JKS", "TRUSTSTORE_PW",
+        "LARGE_CASH_THRESHOLD", "SMURFING_WINDOW_MIN", "SMURFING_TXN_COUNT",
+    ]
+    for var in vars_to_replace:
+        value = os.environ.get(var, "")
+        text = text.replace(f"${{{var}}}", value)
+    return text
 
 
 class SSBClient:
