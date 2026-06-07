@@ -138,8 +138,8 @@ pip install --upgrade pip
 # 패키지 다운로드 (플랫폼 옵션 없이 — Bastion이 RHEL 9.6이므로 자동 일치)
 pip download -r data_gen/requirements.txt -d ./wheels/
 
-tar czf aml-wheels.tar.gz wheels/
-scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/
+tar cf aml-wheels.tar wheels/
+scp aml-wheels.tar systest@<클러스터-호스트>:/tmp/
 ```
 
 ### 클러스터 노드에서 (오프라인 설치)
@@ -152,7 +152,7 @@ sudo dnf install -y python3-gssapi krb5-devel
 python3 -m venv --system-site-packages /tmp/aml-venv
 source /tmp/aml-venv/bin/activate
 
-cd /tmp && tar xzf aml-wheels.tar.gz
+cd /tmp && tar xf aml-wheels.tar
 pip install --no-index --find-links=./wheels/ -r /path/to/data_gen/requirements.txt
 
 # 최종 확인

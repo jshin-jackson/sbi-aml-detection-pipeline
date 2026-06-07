@@ -22,14 +22,14 @@
 #   source /tmp/aml-venv/bin/activate
 #   pip install --upgrade pip
 #   pip download -r requirements.txt -d ./wheels/
-#   tar czf aml-wheels.tar.gz wheels/
-#   scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/
+#   tar cf aml-wheels.tar wheels/
+#   scp aml-wheels.tar systest@<클러스터-호스트>:/tmp/
 #
 # [Step 3] 클러스터 노드에서 오프라인 설치:
 #   sudo dnf install -y python3-gssapi krb5-devel
 #   python3 -m venv --system-site-packages /tmp/aml-venv
 #   source /tmp/aml-venv/bin/activate
-#   cd /tmp && tar xzf aml-wheels.tar.gz
+#   cd /tmp && tar xf aml-wheels.tar
 #   pip install --no-index --find-links=./wheels/ -r requirements.txt
 #
 # [Step 4] 설치 확인:
