@@ -6,19 +6,19 @@
 #   python3 --version  # 3.9.x 확인
 #
 # =============================================================================
-# Air-gapped 환경 설치 방법
+# RHEL 9.6 Air-gapped 환경 설치 방법
 # =============================================================================
 #
-# [Step 1] 인터넷 가능한 머신에서 (Python 3.9 환경):
+# [Step 1] gssapi / Kerberos 시스템 패키지 설치 (dnf 내부 저장소 사용)
+#   sudo dnf install -y python3-gssapi krb5-devel
 #
-#   python3 -m venv /tmp/aml-venv
+# [Step 2] 시스템 패키지를 사용하는 venv 생성
+#   python3 -m venv --system-site-packages /tmp/aml-venv
 #   source /tmp/aml-venv/bin/activate
 #   pip install --upgrade pip
 #
-#   # RHEL 9.6 (x86_64) + Python 3.9 대상으로 바이너리 휠 다운로드
-#   # --prefer-binary  : 소스 배포판 대신 미리 컴파일된 .whl 우선 사용
-#   # --platform       : RHEL 9.x = manylinux_2_28_x86_64
-#   # --python-version : 3.9
+# [Step 3] 나머지 패키지를 인터넷 머신에서 미리 다운로드
+#   (인터넷 가능한 머신 — Python 3.9 + RHEL x86_64 환경에서)
 #   pip download \
 #     --prefer-binary \
 #     --platform manylinux_2_28_x86_64 \
@@ -27,29 +27,24 @@
 #     --abi cp39 \
 #     -r requirements.txt \
 #     -d ./wheels/
-#
 #   tar czf aml-wheels.tar.gz wheels/
-#   # aml-wheels.tar.gz 를 클러스터 노드로 복사 (scp 등)
+#   scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/
 #
-# [Step 2] 클러스터 노드에서:
-#   python3 -m venv /tmp/aml-venv
+# [Step 4] 클러스터 노드에서 오프라인 설치
+#   cd /tmp && tar xzf aml-wheels.tar.gz
 #   source /tmp/aml-venv/bin/activate
-#   tar xzf aml-wheels.tar.gz
 #   pip install --no-index --find-links=./wheels/ -r requirements.txt
 #
-# [Step 3] 실행 시 항상 venv 활성화:
-#   source /tmp/aml-venv/bin/activate
-#
-# ---- gssapi 설치 실패 시 대안 (RHEL 9 시스템 패키지 사용) ----
-#   sudo dnf install python3-gssapi krb5-devel   # 인터넷/내부 dnf 저장소 필요
-#   # 시스템 패키지를 venv에서 사용하려면 venv 생성 시:
-#   python3 -m venv --system-site-packages /tmp/aml-venv
+# [Step 5] 설치 확인
+#   python3 -c "import gssapi, kafka, sdv; print('OK')"
 #
 # =============================================================================
+
+# gssapi 는 dnf로 설치 (시스템 패키지) → requirements.txt에서 제외
+# sudo dnf install -y python3-gssapi krb5-devel
 
 sdv>=1.9.0
 pandas>=1.5.0
 numpy>=1.23.0
 kafka-python>=2.0.0
-gssapi>=1.8.0
 python-snappy>=0.7.0

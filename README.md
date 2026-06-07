@@ -113,19 +113,30 @@ sbi-aml-detection-pipeline/
 ## Step 0 — Python 환경 구성 (Air-gapped)
 
 > **Air-gapped 환경**이므로 인터넷 연결 없이 패키지를 설치합니다.  
-> 인터넷이 되는 다른 머신에서 패키지를 미리 다운로드해야 합니다.
+> `gssapi`는 C 확장 라이브러리이므로 **dnf 시스템 패키지로 설치**하고,  
+> 나머지 패키지만 인터넷 머신에서 미리 다운로드합니다.
 
-### 인터넷 가능한 머신에서 (1회만)
+### 클러스터 노드에서 (gssapi — dnf 설치)
 
 ```bash
-# Python 3.9 환경에서 실행
-python3 -m venv /tmp/aml-venv
+# gssapi / Kerberos 시스템 패키지 설치
+# (RHEL 내부 dnf 저장소 또는 로컬 ISO 저장소 사용)
+sudo dnf install -y python3-gssapi krb5-devel
+
+# 시스템 패키지를 venv에서 함께 사용 (--system-site-packages)
+python3 -m venv --system-site-packages /tmp/aml-venv
 source /tmp/aml-venv/bin/activate
 pip install --upgrade pip
 
-# RHEL 9.6 (x86_64) + Python 3.9 대상 바이너리 휠 다운로드
-# --prefer-binary : 소스 배포판 대신 미리 컴파일된 .whl 우선 사용 (gssapi 빌드 오류 방지)
-# --platform      : RHEL 9.x = manylinux_2_28_x86_64
+# 설치 확인
+python3 -c "import gssapi; print('gssapi OK')"
+```
+
+### 인터넷 가능한 머신에서 (나머지 패키지 — 1회만)
+
+```bash
+# Python 3.9 + RHEL 9.6 x86_64 대상 바이너리 휠 다운로드
+# gssapi는 제외 (dnf로 설치했으므로)
 pip download \
   --prefer-binary \
   --platform manylinux_2_28_x86_64 \
@@ -135,49 +146,26 @@ pip download \
   -r data_gen/requirements.txt \
   -d ./wheels/
 
-# 압축하여 클러스터로 전송
 tar czf aml-wheels.tar.gz wheels/
 scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/
 ```
 
-### 클러스터 노드에서
+### 클러스터 노드에서 (나머지 패키지 오프라인 설치)
 
 ```bash
-# venv 생성
-python3 -m venv /tmp/aml-venv
 source /tmp/aml-venv/bin/activate
 
-# 오프라인 설치
-cd /tmp
-tar xzf aml-wheels.tar.gz
+cd /tmp && tar xzf aml-wheels.tar.gz
 pip install --no-index --find-links=./wheels/ -r /path/to/data_gen/requirements.txt
 
-# 설치 확인
-python3 -c "import kafka, sdv; print('OK')"
+# 최종 확인
+python3 -c "import gssapi, kafka, sdv; print('All OK')"
 ```
 
 > **이후 모든 python 명령은 venv 활성화 후 실행:**
 > ```bash
 > source /tmp/aml-venv/bin/activate
 > ```
-
-**gssapi 설치 오류가 발생하면 (대안):**
-
-```bash
-# 방법 1: RHEL 시스템 패키지로 설치 (내부 dnf 저장소 필요)
-sudo dnf install python3-gssapi krb5-devel
-
-# 시스템 패키지를 venv에서 사용 (venv 재생성)
-python3 -m venv --system-site-packages /tmp/aml-venv
-source /tmp/aml-venv/bin/activate
-pip install --no-index --find-links=./wheels/ sdv pandas numpy kafka-python python-snappy
-
-# 방법 2: 인터넷 머신에서 다운로드 시 플랫폼 명시 재시도
-pip download --prefer-binary \
-  --platform manylinux_2_28_x86_64 \
-  --python-version 39 --implementation cp --abi cp39 \
-  gssapi -d ./wheels/
-```
 
 ---
 
