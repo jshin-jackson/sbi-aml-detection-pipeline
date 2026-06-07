@@ -74,24 +74,45 @@ fi
 # ------------------------------------------------------------------
 section "4. Kafka 연결 테스트 (SASL_SSL + GSSAPI)"
 # ------------------------------------------------------------------
-# 임시 Kafka client 설정 파일 생성
-KAFKA_CLIENT_CONF=$(mktemp)
+KAFKA_TOPICS_CMD="${KAFKA_HOME:-/opt/cloudera/parcels/CDH/lib/kafka}/bin/kafka-topics.sh"
+
+# JAAS 설정 파일 생성 (sibling 프로젝트 패턴)
+TMPDIR_VERIFY=$(mktemp -d)
+trap 'rm -rf "${TMPDIR_VERIFY}"' EXIT
+
+JAAS_CONF="${TMPDIR_VERIFY}/kafka-jaas.conf"
+KAFKA_CLIENT_CONF="${TMPDIR_VERIFY}/kafka-client.properties"
+
+cat > "${JAAS_CONF}" <<EOF
+KafkaClient {
+    com.sun.security.auth.module.Krb5LoginModule required
+    useKeyTab=true
+    storeKey=true
+    keyTab="${KEYTAB}"
+    principal="${PRINCIPAL}";
+};
+EOF
+
 cat > "${KAFKA_CLIENT_CONF}" <<EOF
 security.protocol=SASL_SSL
 sasl.mechanism=GSSAPI
 sasl.kerberos.service.name=kafka
 ssl.truststore.location=${TRUSTSTORE_JKS}
 ssl.truststore.password=${TRUSTSTORE_PW}
+ssl.truststore.type=JKS
+request.timeout.ms=30000
 EOF
 
-if kafka-topics --bootstrap-server "${KAFKA_BROKERS}" \
+export KAFKA_OPTS="-Djava.security.auth.login.config=${JAAS_CONF}"
+
+if "${KAFKA_TOPICS_CMD}" \
+    --bootstrap-server "${KAFKA_BROKERS}" \
     --command-config "${KAFKA_CLIENT_CONF}" \
     --list &>/dev/null; then
   ok "Kafka 연결 성공 (${KAFKA_BROKERS})"
 else
-  fail "Kafka 연결 실패 — 브로커 주소 또는 Kerberos 설정 확인 필요"
+  fail "Kafka 연결 실패 — 브로커 주소 또는 TRUSTSTORE_PW 확인 필요"
 fi
-rm -f "${KAFKA_CLIENT_CONF}"
 
 # ------------------------------------------------------------------
 section "5. Impala 연결 테스트 (Kerberos + SSL)"
