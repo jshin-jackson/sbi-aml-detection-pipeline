@@ -148,12 +148,16 @@ python3 -c "import gssapi; print('gssapi OK')"
 # gssapi는 제외 (dnf로 설치했으므로)
 pip download \
   --only-binary=:all: \
-  --platform manylinux_2_28_x86_64 \
+  --platform manylinux_2_17_x86_64 \
   --python-version 39 \
   --implementation cp \
   --abi cp39 \
   -r data_gen/requirements.txt \
   -d ./wheels/
+# manylinux_2_17 사용 이유:
+#   numpy 1.x / kafka-python 등은 manylinux_2_17 태그로 배포됨
+#   RHEL 9.6 (glibc 2.34) 에서 manylinux_2_17 wheel 실행 가능 (2.34 > 2.17)
+#   manylinux_2_28 로 지정하면 numpy 를 찾지 못해 오류 발생
 
 tar czf aml-wheels.tar.gz wheels/
 scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/

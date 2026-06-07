@@ -21,12 +21,17 @@
 #   (인터넷 가능한 머신 — Python 3.9 + RHEL x86_64 환경에서)
 #   pip download \
 #     --only-binary=:all: \
-#     --platform manylinux_2_28_x86_64 \
+#     --platform manylinux_2_17_x86_64 \
 #     --python-version 39 \
 #     --implementation cp \
 #     --abi cp39 \
 #     -r requirements.txt \
 #     -d ./wheels/
+#
+#   플랫폼 선택 이유:
+#     manylinux_2_17 = numpy/scipy 등 1.x 계열이 사용하는 표준 Linux 태그
+#     RHEL 9.6 (glibc 2.34) 에서 manylinux_2_17 wheel 실행 가능 (2.34 > 2.17)
+#     manylinux_2_28 로 지정하면 numpy 1.x wheel 을 못 찾아 오류 발생
 #   tar czf aml-wheels.tar.gz wheels/
 #   scp aml-wheels.tar.gz systest@<클러스터-호스트>:/tmp/
 #
