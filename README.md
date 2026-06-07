@@ -47,8 +47,14 @@ CSA      : 1.9.0.1 (Apache Flink 1.15.1 기반)
 보안     : Kerberos + Auto-TLS + Ranger (전체 활성화)
 실행 계정: systest
 Keytab   : /opt/cloudera/systest.keytab
-Python   : 3.9.x (RHEL 9.6 기본 포함)
+Python   : 3.9.x  ← RHEL 9.6 기본 내장, 추가 설치 불필요
 ```
+
+> **Python 버전 확인:**
+> ```bash
+> python3 --version   # Python 3.9.x 출력 확인
+> python3 -c "import sys; assert sys.version_info >= (3,9), 'Python 3.9 이상 필요'"
+> ```
 
 ---
 
@@ -119,6 +125,9 @@ sbi-aml-detection-pipeline/
 ### 클러스터 노드에서 (gssapi — dnf 설치)
 
 ```bash
+# Python 3.9 버전 확인 (RHEL 9.6 기본 내장)
+python3 --version   # Python 3.9.x 확인
+
 # gssapi / Kerberos 시스템 패키지 설치
 # (RHEL 내부 dnf 저장소 또는 로컬 ISO 저장소 사용)
 sudo dnf install -y python3-gssapi krb5-devel
@@ -570,7 +579,7 @@ rm -rf /tmp/aml-data/
 |------|-----|
 | CFM 버전 | 4.12.0 (Apache NiFi 2.6.0) |
 | CSA 버전 | 1.9.0.1 (Apache Flink 1.15.1) |
-| Python | 3.9.x |
+| Python | **3.9.x** (RHEL 9.6 기본 내장, `python3 --version`으로 확인) |
 | Kafka 라이브러리 | kafka-python 2.0+ (순수 Python, air-gapped 호환) |
 | SDV | 1.9.0+ (GaussianCopulaSynthesizer) |
 | 보안 | Kerberos + Auto-TLS + Ranger (전체 활성화) |

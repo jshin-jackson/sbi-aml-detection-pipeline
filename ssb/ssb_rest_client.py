@@ -29,22 +29,20 @@ import subprocess
 import argparse
 from pathlib import Path
 
-from dotenv import load_dotenv
 import requests
 from requests.auth import HTTPBasicAuth
 
 # ----------------------------------------------------------------
-# config 로드
+# 환경 변수 (source config/env.conf 후 os.environ에서 읽음)
+# python-dotenv 미사용 — generate_aml_data.py / kafka_producer.py와 동일 방식
 # ----------------------------------------------------------------
-CONFIG_PATH = Path(__file__).parent.parent / "config" / "env.conf"
-load_dotenv(CONFIG_PATH)
-
-SSB_HOST     = os.environ["SSB_HOST"]
-SSB_USER     = os.environ["SSB_USER"]
-SSB_PASSWORD = os.environ["SSB_PASSWORD"]
-CA_PEM       = os.environ["CA_PEM"]
-KEYTAB       = os.environ["KEYTAB"]
-PRINCIPAL    = os.environ["PRINCIPAL"]
+SSB_HOST     = os.environ.get("SSB_HOST",     "https://localhost:18121")
+SSB_USER     = os.environ.get("SSB_USER",     "systest")
+SSB_PASSWORD = os.environ.get("SSB_PASSWORD", "")
+CA_PEM       = os.environ.get("CA_PEM",
+               "/var/lib/cloudera-scm-agent/agent-cert/cm-auto-global_cacerts.pem")
+KEYTAB       = os.environ.get("KEYTAB",   "/opt/cloudera/systest.keytab")
+PRINCIPAL    = os.environ.get("PRINCIPAL", "systest@ROOT.COMOPS.SITE")
 
 
 def kinit():
