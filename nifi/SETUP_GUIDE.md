@@ -5,10 +5,15 @@
 이 가이드는 CFM(Cloudera Flow Management) 4.12의 NiFi 2.x UI에서  
 AML 거래 데이터를 Kafka로 전송하는 Flow를 설정하는 방법을 설명합니다.
 
-**Flow 구조:**
+**Flow 구조 (5개 프로세서):**
 ```
-GetFile → UpdateAttribute → PublishKafka2CDP → LogMessage
+GetFile → SplitText → UpdateAttribute → PublishKafka2CDP → LogMessage
 ```
+
+> **SplitText가 필요한 이유:**  
+> JSONL 파일은 한 줄에 거래 1건입니다. SplitText(Line Split Count=1)로  
+> 줄 단위로 나눠야 Kafka 메시지 1건 = 거래 1건이 됩니다.  
+> SplitText 없으면 파일 전체가 메시지 1개로 전송되어 SSB 파싱 실패합니다.
 
 **URL:** `https://<NIFI_HOST>:8443/nifi`
 
@@ -26,7 +31,7 @@ GetFile → UpdateAttribute → PublishKafka2CDP → LogMessage
 
 | Parameter 이름 | 값 (내부 환경 예시) | 설명 |
 |---|---|---|
-| `kafka.brokers` | `ccycloud-1:9093,ccycloud-2:9093` | Kafka 브로커 주소 |
+| `kafka.brokers` | `ccycloud-1.jshin.root.comops.site:9093,...` | Kafka 브로커 주소 |
 | `kafka.topic.txn` | `sbi-aml-transactions` | 거래 Kafka 토픽 |
 | `kerberos.keytab` | `/opt/cloudera/systest.keytab` | Kerberos keytab 경로 |
 | `kerberos.principal` | `systest@ROOT.COMOPS.SITE` | Kerberos principal |
@@ -102,13 +107,24 @@ Canvas 빈 공간에서 각 프로세서를 드래그하여 추가합니다.
 | Polling Interval | `5 sec` | 5초마다 새 파일 확인 |
 | Keep Source File | `false` | 처리 후 파일 삭제 |
 
-### Processor 2: UpdateAttribute
+### Processor 2: SplitText
+
+> **핵심:** JSONL 파일을 줄 단위로 분리합니다.  
+> 거래 1건(한 줄) = FlowFile 1개 = Kafka 메시지 1개가 되어야 SSB Flink가 올바르게 파싱합니다.
+
+| 속성 | 값 | 설명 |
+|---|---|---|
+| Line Split Count | `1` | 한 줄 = FlowFile 1개 |
+| Header Line Count | `0` | 헤더 없음 |
+| Remove Trailing Newlines | `true` | 개행문자 제거 |
+
+### Processor 3: UpdateAttribute
 
 | 속성 | 값 | 설명 |
 |---|---|---|
 | `mime.type` | `application/json` | Content-Type 설정 |
 
-### Processor 3: PublishKafka2CDP
+### Processor 4: PublishKafka2CDP
 
 > `PublishKafka2CDP`는 CFM 4.x의 Cloudera 전용 Kafka 프로세서입니다.  
 > NiFi 2.x의 `KerberosUserService`와 함께 동작합니다.
@@ -122,7 +138,7 @@ Canvas 빈 공간에서 각 프로세서를 드래그하여 추가합니다.
 | Record Writer | `JsonRecordSetWriter` | JSON 형식 출력 |
 | Delivery Guarantee | `Best Effort` | Demo용 (성능 우선) |
 
-### Processor 4: LogMessage
+### Processor 5: LogMessage
 
 | 속성 | 값 |
 |---|---|
@@ -137,20 +153,20 @@ Canvas 빈 공간에서 각 프로세서를 드래그하여 추가합니다.
 프로세서 사이를 드래그하여 연결합니다.
 
 ```
-GetFile ──[success]──► UpdateAttribute ──[success]──► PublishKafka2CDP ──[success]──► LogMessage
-                                                              │
-                                                         [failure]
-                                                              │
-                                                          (terminate)
+GetFile ──[success]──► SplitText ──[splits]──► UpdateAttribute ──[success]──► PublishKafka2CDP ──[success]──► LogMessage
+                           │                                                           │
+                       [original]                                                 [failure]
+                           │                                                           │
+                       (terminate)                                                (terminate)
 ```
 
 **연결 방법:**
-1. GetFile 프로세서 위에 마우스 올리기 → 화살표 아이콘 드래그
-2. UpdateAttribute에 연결 → Relationship: `success` 선택
-3. 동일한 방법으로 나머지 연결
-
-**실패 처리:**
-- `PublishKafka2CDP`의 `failure` 관계: **Terminate** (Demo용 단순화)
+1. GetFile → SplitText: Relationship `success` 선택
+2. SplitText → UpdateAttribute: Relationship `splits` 선택
+3. SplitText의 `original`: **Terminate** 선택 (원본 파일 참조 종료)
+4. UpdateAttribute → PublishKafka2CDP: Relationship `success` 선택
+5. PublishKafka2CDP → LogMessage: Relationship `success` 선택
+6. PublishKafka2CDP의 `failure`: **Terminate** 선택
 
 ---
 
@@ -161,7 +177,7 @@ GetFile ──[success]──► UpdateAttribute ──[success]──► Publis
 3. 모든 프로세서가 초록색(실행 중) 상태 확인
 
 **확인:**
-- GetFile: 파일 읽기 수 증가 확인
+- SplitText: In/Out 카운터가 파일 1개 → N건으로 분리됨을 확인
 - PublishKafka2CDP: 전송 성공 카운터 증가 확인
 - SMM UI에서 `sbi-aml-transactions` 토픽 메시지 수 증가 확인
 
@@ -169,7 +185,7 @@ GetFile ──[success]──► UpdateAttribute ──[success]──► Publis
 
 ## Flow Export (환경 전환 백업용)
 
-현재 Flow를 XML로 저장해두면 고객 환경에서 바로 Import할 수 있습니다.
+현재 Flow를 JSON으로 저장해두면 고객 환경에서 바로 Import할 수 있습니다.
 
 1. `AML-Ingest-Flow` Process Group 우클릭 → **Download Flow Definition**
 2. `aml_ingest_flow.json` 파일로 저장
@@ -187,6 +203,7 @@ GetFile ──[success]──► UpdateAttribute ──[success]──► Publis
 | 증상 | 원인 | 해결 방법 |
 |---|---|---|
 | `GetFile` 프로세서가 파일을 읽지 않음 | 디렉토리 권한 문제 | `chmod 755 /tmp/aml-data` |
+| SSB에서 Kafka 메시지 파싱 실패 | SplitText 미설정 → 파일 전체가 1건으로 전송됨 | SplitText 추가, Line Split Count=1 확인 |
 | `PublishKafka2CDP` 빨간 경고 | Kerberos 인증 실패 | `KerberosUserService` 상태 확인 |
 | SSL 연결 오류 | Truststore 경로/패스워드 오류 | `StandardSSLContextService` 재확인 |
 | `KerberosUserService` 활성화 실패 | Keytab 파일 없음 | `ls -la /opt/cloudera/systest.keytab` |

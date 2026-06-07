@@ -290,12 +290,15 @@ CFM/NiFi는 데이터를 수집하여 Kafka로 전달하는 파이프라인입�
 
 **상세 설정 방법:** `nifi/SETUP_GUIDE.md`를 참고하세요.
 
-**사용하는 프로세서 4개:**
+**사용하는 프로세서 5개:**
 
 ```
-GetFile → UpdateAttribute → PublishKafka2CDP → LogMessage
-  파일읽기    속성추가          Kafka전송(TLS+Kerberos)  로깅
+GetFile → SplitText → UpdateAttribute → PublishKafka2CDP → LogMessage
+  파일읽기   줄단위분리    속성추가          Kafka전송(TLS+Kerberos)  로깅
 ```
+
+> **SplitText 필수:** JSONL 파일을 줄 단위(Line Split Count=1)로 분리해야  
+> Kafka 메시지 1건 = 거래 1건이 됩니다. 없으면 파일 전체가 1건으로 전송되어 SSB 파싱 실패합니다.
 
 **사용하는 Controller Services:**
 
