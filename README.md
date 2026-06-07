@@ -123,8 +123,17 @@ python3 -m venv /tmp/aml-venv
 source /tmp/aml-venv/bin/activate
 pip install --upgrade pip
 
-# 패키지 파일(.whl) 다운로드
-pip download -r data_gen/requirements.txt -d ./wheels/
+# RHEL 9.6 (x86_64) + Python 3.9 대상 바이너리 휠 다운로드
+# --prefer-binary : 소스 배포판 대신 미리 컴파일된 .whl 우선 사용 (gssapi 빌드 오류 방지)
+# --platform      : RHEL 9.x = manylinux_2_28_x86_64
+pip download \
+  --prefer-binary \
+  --platform manylinux_2_28_x86_64 \
+  --python-version 39 \
+  --implementation cp \
+  --abi cp39 \
+  -r data_gen/requirements.txt \
+  -d ./wheels/
 
 # 압축하여 클러스터로 전송
 tar czf aml-wheels.tar.gz wheels/
@@ -151,6 +160,24 @@ python3 -c "import kafka, sdv; print('OK')"
 > ```bash
 > source /tmp/aml-venv/bin/activate
 > ```
+
+**gssapi 설치 오류가 발생하면 (대안):**
+
+```bash
+# 방법 1: RHEL 시스템 패키지로 설치 (내부 dnf 저장소 필요)
+sudo dnf install python3-gssapi krb5-devel
+
+# 시스템 패키지를 venv에서 사용 (venv 재생성)
+python3 -m venv --system-site-packages /tmp/aml-venv
+source /tmp/aml-venv/bin/activate
+pip install --no-index --find-links=./wheels/ sdv pandas numpy kafka-python python-snappy
+
+# 방법 2: 인터넷 머신에서 다운로드 시 플랫폼 명시 재시도
+pip download --prefer-binary \
+  --platform manylinux_2_28_x86_64 \
+  --python-version 39 --implementation cp --abi cp39 \
+  gssapi -d ./wheels/
+```
 
 ---
 

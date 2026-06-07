@@ -10,10 +10,24 @@
 # =============================================================================
 #
 # [Step 1] 인터넷 가능한 머신에서 (Python 3.9 환경):
+#
 #   python3 -m venv /tmp/aml-venv
 #   source /tmp/aml-venv/bin/activate
 #   pip install --upgrade pip
-#   pip download -r requirements.txt -d ./wheels/
+#
+#   # RHEL 9.6 (x86_64) + Python 3.9 대상으로 바이너리 휠 다운로드
+#   # --prefer-binary  : 소스 배포판 대신 미리 컴파일된 .whl 우선 사용
+#   # --platform       : RHEL 9.x = manylinux_2_28_x86_64
+#   # --python-version : 3.9
+#   pip download \
+#     --prefer-binary \
+#     --platform manylinux_2_28_x86_64 \
+#     --python-version 39 \
+#     --implementation cp \
+#     --abi cp39 \
+#     -r requirements.txt \
+#     -d ./wheels/
+#
 #   tar czf aml-wheels.tar.gz wheels/
 #   # aml-wheels.tar.gz 를 클러스터 노드로 복사 (scp 등)
 #
@@ -25,6 +39,11 @@
 #
 # [Step 3] 실행 시 항상 venv 활성화:
 #   source /tmp/aml-venv/bin/activate
+#
+# ---- gssapi 설치 실패 시 대안 (RHEL 9 시스템 패키지 사용) ----
+#   sudo dnf install python3-gssapi krb5-devel   # 인터넷/내부 dnf 저장소 필요
+#   # 시스템 패키지를 venv에서 사용하려면 venv 생성 시:
+#   python3 -m venv --system-site-packages /tmp/aml-venv
 #
 # =============================================================================
 
