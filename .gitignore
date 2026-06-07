@@ -1,0 +1,46 @@
+# =============================================================================
+# SBI AML Detection Pipeline — .gitignore
+# 보안 파일 및 불필요한 파일은 절대 커밋하지 않습니다.
+# =============================================================================
+
+# ---- 보안 (절대 커밋 금지) ----
+*.keytab
+*.jks
+*.p12
+*.pem
+*.crt
+*.key
+*.pw
+
+# ---- 생성된 데이터 파일 (커밋 불필요) ----
+*.jsonl
+*.csv
+*.json.bak
+
+# ---- Air-gapped 패키지 캐시 ----
+wheels/
+aml-wheels.tar.gz
+
+# ---- 렌더링된 SQL (임시) ----
+/tmp/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+/tmp/aml-venv/
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# ---- Flink 체크포인트 ----
+checkpoint/
+checkpoints/

@@ -1,0 +1,139 @@
+{
+  "_comment": "SBI AML Pipeline — Ranger 정책 템플릿",
+  "_note": "Ranger UI에서 수동으로 적용하거나 Ranger REST API로 import합니다.",
+  "_user": "systest (모든 컴포넌트 단일 계정)",
+  "policies": [
+    {
+      "_comment": "Kafka: 거래 토픽 Producer 권한 (NiFi → Kafka)",
+      "service": "cm_kafka",
+      "name": "aml-kafka-producer",
+      "isEnabled": true,
+      "isAuditEnabled": true,
+      "resources": {
+        "topic": {
+          "values": ["sbi-aml-transactions", "sbi-aml-alerts"],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "users": ["systest"],
+          "groups": [],
+          "accesses": [
+            {"type": "publish", "isAllowed": true},
+            {"type": "describe", "isAllowed": true}
+          ]
+        }
+      ]
+    },
+    {
+      "_comment": "Kafka: 거래 토픽 Consumer 권한 (SSB/Flink → Kafka)",
+      "service": "cm_kafka",
+      "name": "aml-kafka-consumer",
+      "isEnabled": true,
+      "isAuditEnabled": true,
+      "resources": {
+        "topic": {
+          "values": ["sbi-aml-transactions", "sbi-aml-alerts"],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "users": ["systest"],
+          "groups": [],
+          "accesses": [
+            {"type": "consume", "isAllowed": true},
+            {"type": "describe", "isAllowed": true}
+          ]
+        }
+      ]
+    },
+    {
+      "_comment": "Kafka: Consumer Group 권한",
+      "service": "cm_kafka",
+      "name": "aml-kafka-consumer-group",
+      "isEnabled": true,
+      "isAuditEnabled": true,
+      "resources": {
+        "consumergroup": {
+          "values": ["aml-*", "systest-*"],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "users": ["systest"],
+          "groups": [],
+          "accesses": [
+            {"type": "consume", "isAllowed": true},
+            {"type": "describe", "isAllowed": true}
+          ]
+        }
+      ]
+    },
+    {
+      "_comment": "Kudu: AML 테이블 읽기/쓰기 권한",
+      "service": "cm_kudu",
+      "name": "aml-kudu-readwrite",
+      "isEnabled": true,
+      "isAuditEnabled": true,
+      "resources": {
+        "table": {
+          "values": ["default.aml_transactions", "default.aml_alerts", "default.aml_risk_score"],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "users": ["systest"],
+          "groups": [],
+          "accesses": [
+            {"type": "read",  "isAllowed": true},
+            {"type": "write", "isAllowed": true}
+          ]
+        }
+      ]
+    },
+    {
+      "_comment": "Hive/Impala: AML 데이터베이스 접근 권한",
+      "service": "cm_hive",
+      "name": "aml-hive-access",
+      "isEnabled": true,
+      "isAuditEnabled": true,
+      "resources": {
+        "database": {
+          "values": ["default"],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "table": {
+          "values": ["aml_*"],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "column": {
+          "values": ["*"],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "users": ["systest"],
+          "groups": [],
+          "accesses": [
+            {"type": "select", "isAllowed": true},
+            {"type": "update", "isAllowed": true},
+            {"type": "create", "isAllowed": true},
+            {"type": "drop",   "isAllowed": true}
+          ]
+        }
+      ]
+    }
+  ]
+}

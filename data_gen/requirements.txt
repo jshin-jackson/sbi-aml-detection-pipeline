@@ -1,0 +1,36 @@
+# =============================================================================
+# SBI AML Detection Pipeline — Python 패키지 목록
+# 검증 환경: Python 3.9.x / RHEL 9.6 (Air-gapped)
+#
+# RHEL 9.6에는 Python 3.9가 기본 포함 → SCL 설치 불필요
+#   python3 --version  # 3.9.x 확인
+#
+# =============================================================================
+# Air-gapped 환경 설치 방법
+# =============================================================================
+#
+# [Step 1] 인터넷 가능한 머신에서 (Python 3.9 환경):
+#   python3 -m venv /tmp/aml-venv
+#   source /tmp/aml-venv/bin/activate
+#   pip install --upgrade pip
+#   pip download -r requirements.txt -d ./wheels/
+#   tar czf aml-wheels.tar.gz wheels/
+#   # aml-wheels.tar.gz 를 클러스터 노드로 복사 (scp 등)
+#
+# [Step 2] 클러스터 노드에서:
+#   python3 -m venv /tmp/aml-venv
+#   source /tmp/aml-venv/bin/activate
+#   tar xzf aml-wheels.tar.gz
+#   pip install --no-index --find-links=./wheels/ -r requirements.txt
+#
+# [Step 3] 실행 시 항상 venv 활성화:
+#   source /tmp/aml-venv/bin/activate
+#
+# =============================================================================
+
+sdv>=1.9.0
+pandas>=1.5.0
+numpy>=1.23.0
+kafka-python>=2.0.0
+gssapi>=1.8.0
+python-snappy>=0.7.0
