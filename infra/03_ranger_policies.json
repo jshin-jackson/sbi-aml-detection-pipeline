@@ -49,7 +49,7 @@
           "users": ["systest"],
           "groups": [],
           "accesses": [
-            {"type": "publish", "isAllowed": true},
+            {"type": "publish",  "isAllowed": true},
             {"type": "describe", "isAllowed": true}
           ]
         }
@@ -73,7 +73,7 @@
           "users": ["systest"],
           "groups": [],
           "accesses": [
-            {"type": "consume", "isAllowed": true},
+            {"type": "consume",  "isAllowed": true},
             {"type": "describe", "isAllowed": true}
           ]
         }
@@ -87,7 +87,7 @@
       "isAuditEnabled": true,
       "resources": {
         "consumergroup": {
-          "values": ["aml-*", "systest-*"],
+          "values": ["aml-flink", "systest-aml-group"],
           "isExcludes": false,
           "isRecursive": false
         }
@@ -97,7 +97,7 @@
           "users": ["systest"],
           "groups": [],
           "accesses": [
-            {"type": "consume", "isAllowed": true},
+            {"type": "consume",  "isAllowed": true},
             {"type": "describe", "isAllowed": true}
           ]
         }
@@ -128,7 +128,7 @@
       ]
     },
     {
-      "_comment": "Hive/Impala: AML 데이터베이스 접근 권한",
+      "_comment": "Hive/Impala: AML 테이블 접근 권한",
       "service": "cm_hive",
       "name": "aml-hive-access",
       "isEnabled": true,
@@ -140,7 +140,7 @@
           "isRecursive": false
         },
         "table": {
-          "values": ["aml_*"],
+          "values": ["aml_transactions", "aml_alerts", "aml_risk_score"],
           "isExcludes": false,
           "isRecursive": false
         },

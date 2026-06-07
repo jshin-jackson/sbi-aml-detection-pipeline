@@ -223,11 +223,11 @@ Ranger는 "누가 어떤 데이터에 접근할 수 있는지" 제어하는 보�
 
 | 서비스 | 정책 이름 | 대상 | 권한 |
 |--------|----------|------|------|
-| cm_kafka | aml-kafka-admin | `sbi-aml-*` 토픽 | create, delete, configure, describe |
-| cm_kafka | aml-kafka-producer | `sbi-aml-*` 토픽 | publish |
-| cm_kafka | aml-kafka-consumer | `sbi-aml-*` 토픽 | consume |
-| cm_kudu | aml-kudu-readwrite | `default.aml_*` 테이블 | read, write |
-| cm_hive | aml-hive-access | `default.aml_*` | select, create |
+| cm_kafka | aml-kafka-admin | `sbi-aml-transactions`, `sbi-aml-alerts` | create, delete, configure, describe |
+| cm_kafka | aml-kafka-producer | `sbi-aml-transactions`, `sbi-aml-alerts` | publish |
+| cm_kafka | aml-kafka-consumer | `sbi-aml-transactions`, `sbi-aml-alerts` | consume |
+| cm_kudu | aml-kudu-readwrite | `default.aml_transactions`, `default.aml_alerts`, `default.aml_risk_score` | read, write |
+| cm_hive | aml-hive-access | `default.aml_transactions`, `default.aml_alerts`, `default.aml_risk_score` | select, create |
 
 > **주의:** 기존 정책은 수정/삭제하지 않습니다. 새 정책만 추가합니다.
 
