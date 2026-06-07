@@ -154,7 +154,6 @@ def produce_from_jsonl(file_path: str, rate: int) -> int:
                 sent += 1
 
                 if sent % 500 == 0:
-                    producer.poll(0)
                     print(f"  전송: {sent}건...")
 
                 if sleep_interval > 0:
