@@ -1,38 +1,37 @@
-# Apache Flink 1.20.1 Standalone 설치 가이드
+# Apache Flink 1.20.1 Standalone Setup Guide
 
-> CFM/CSA가 설치되지 않은 환경에서 Apache Flink를 직접 설치하여  
-> AML 탐지 Job을 실행하는 방법입니다.  
-> SSB(SQL Stream Builder) 없이 **Flink SQL Client**를 사용합니다.
-
----
-
-## 검증 환경
-
-```
-OS        : RHEL 9.6
-Java      : OpenJDK 21
-Flink     : 1.20.1 (Standalone 모드)
-Kudu 커넥터: flink-connector-kudu-2.0-csa1.17.1.0.jar (CSA 1.17.1)
-Kafka 커넥터: flink-sql-connector-kafka-3.4.0-1.20.jar
-```
+> Use this guide to install Apache Flink directly when CFM/CSA is not available.  
+> AML detection jobs run using the **Flink SQL Client** only, without SSB (SQL Stream Builder).
 
 ---
 
-## Step 1: Java 21 설치
+## Verified Environment
+
+```
+OS         : RHEL 9.6
+Java       : OpenJDK 21
+Flink      : 1.20.1 (Standalone mode)
+Kudu conn. : flink-connector-kudu-2.0-csa1.17.1.0.jar (CSA 1.17.1)
+Kafka conn.: flink-sql-connector-kafka-3.4.0-1.20.jar
+```
+
+---
+
+## Step 1: Install Java 21
 
 ```bash
 sudo dnf install -y java-21-openjdk
 
-# 설치 확인
+# Verify
 java -version   # 21.x.x
 
-# JAVA_HOME 설정
+# Set JAVA_HOME
 export JAVA_HOME=/usr/lib/jvm/java-21
 ```
 
 ---
 
-## Step 2: Flink 1.20.1 설치
+## Step 2: Install Flink 1.20.1
 
 ```bash
 cd /opt
@@ -43,60 +42,60 @@ ln -s /opt/flink-1.20.1 /opt/flink
 
 ---
 
-## Step 3: 필요한 JAR 파일 구성
+## Step 3: Configure Required JAR Files
 
-### 3-1. Kafka SQL 커넥터 다운로드 (인터넷 필요)
+### 3-1. Download Kafka SQL Connector (needs internet)
 
 ```bash
 wget -P /opt/flink/lib/ \
   https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.4.0-1.20/flink-sql-connector-kafka-3.4.0-1.20.jar
 ```
 
-### 3-2. Kudu 커넥터 — CDH 파슬에서 복사
+### 3-2. Kudu Connector — Copy from CDH Parcel
 
 ```bash
-# Kudu 커넥터 (CSA 파슬에서)
-# CSA 파슬 경로 예: /opt/cloudera/parcels/FLINK/ 또는 다른 위치에서 찾기
+# Find Kudu connector (from CSA parcel)
+# Example: /opt/cloudera/parcels/FLINK/ or another parcel location
 find /opt/cloudera/ -name "flink-connector-kudu*.jar" 2>/dev/null
-cp <찾은 경로>/flink-connector-kudu-2.0-csa1.17.1.0.jar /opt/flink/lib/
+cp <found-path>/flink-connector-kudu-2.0-csa1.17.1.0.jar /opt/flink/lib/
 
-# Kudu 클라이언트 의존성 — CDH 파슬에서 복사
+# Kudu client dependencies — copy from CDH parcel
 cp /opt/cloudera/parcels/CDH/jars/kudu-client-1.17.0.7.3.1.600-325.jar /opt/flink/lib/
 cp /opt/cloudera/parcels/CDH/jars/kudu-proto-1.17.0.7.3.1.600-325.jar  /opt/flink/lib/
 
-# async 라이브러리 (kudu-client 의존성)
+# async library (kudu-client dependency)
 wget -P /opt/flink/lib/ \
   https://repo1.maven.org/maven2/com/stumbleupon/async/1.4.1/async-1.4.1.jar
 ```
 
-### 3-3. 최종 /opt/flink/lib 구성 확인
+### 3-3. Final /opt/flink/lib Contents
 
 ```
 async-1.4.1.jar
 flink-cep-1.20.1.jar
 flink-connector-files-1.20.1.jar
-flink-connector-kudu-2.0-csa1.17.1.0.jar    ← Kudu 커넥터
+flink-connector-kudu-2.0-csa1.17.1.0.jar    ← Kudu connector
 flink-csv-1.20.1.jar
 flink-dist-1.20.1.jar
 flink-json-1.20.1.jar
 flink-scala_2.12-1.20.1.jar
-flink-sql-connector-kafka-3.4.0-1.20.jar     ← Kafka 커넥터
+flink-sql-connector-kafka-3.4.0-1.20.jar     ← Kafka connector
 flink-table-api-java-uber-1.20.1.jar
 flink-table-planner-loader-1.20.1.jar
 flink-table-runtime-1.20.1.jar
-kudu-client-1.17.0.7.3.1.600-325.jar         ← Kudu 클라이언트
+kudu-client-1.17.0.7.3.1.600-325.jar         ← Kudu client
 kudu-proto-1.17.0.7.3.1.600-325.jar          ← Kudu Protobuf
-log4j-*.jar (기본 포함)
+log4j-*.jar (included by default)
 ```
 
-> **주의:** `kudu-subprocess`, `kudu-backup`, `kudu-spark3`, `kudu-hive` JAR은  
-> SLF4J 충돌 등을 유발하므로 절대 추가하지 마세요.
+> **Important:** Do NOT add `kudu-subprocess`, `kudu-backup`, `kudu-spark3`, or `kudu-hive` JARs.  
+> They cause SLF4J conflicts and DNS resolver errors.
 
 ---
 
-## Step 4: flink-conf.yaml 설정
+## Step 4: Configure flink-conf.yaml
 
-`/opt/flink/conf/flink-conf.yaml` 편집:
+Edit `/opt/flink/conf/flink-conf.yaml`:
 
 ```yaml
 # REST / JobManager
@@ -105,7 +104,7 @@ rest.port: 8081
 jobmanager.rpc.address: localhost
 jobmanager.rpc.port: 6123
 
-# 메모리 (Demo 최소 설정)
+# Memory (minimum for demo)
 jobmanager.memory.process.size: 1600m
 taskmanager.memory.process.size: 1728m
 taskmanager.numberOfTaskSlots: 4
@@ -117,11 +116,11 @@ security.kerberos.login.keytab: /opt/cloudera/systest.keytab
 security.kerberos.login.principal: systest@ROOT.COMOPS.SITE
 security.kerberos.login.contexts: Client,KafkaClient
 
-# JAAS (따옴표 없이 작성 — shell eval 오류 방지)
+# JAAS (no quotes — avoids shell eval errors)
 env.java.opts: -Djava.security.auth.login.config=/opt/flink/conf/flink-jaas.conf
 ```
 
-### flink-jaas.conf 생성
+### Create flink-jaas.conf
 
 `/opt/flink/conf/flink-jaas.conf`:
 
@@ -135,7 +134,7 @@ KafkaClient {
 };
 ```
 
-### flink-env.sh에 Java 21 고정
+### Pin Java 21 in flink-env.sh
 
 ```bash
 echo 'JAVA_HOME=/usr/lib/jvm/java-21' >> /opt/flink/conf/flink-env.sh
@@ -143,42 +142,48 @@ echo 'JAVA_HOME=/usr/lib/jvm/java-21' >> /opt/flink/conf/flink-env.sh
 
 ---
 
-## Step 5: Flink 시작
+## Step 5: Start Flink
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-21
 /opt/flink/bin/start-cluster.sh
 
-# 정상 확인
+# Verify
 curl http://localhost:8081/overview
 ```
 
 ---
 
-## Step 6: SQL Client로 AML 탐지 실행
+## Step 6: Run AML Detection via SQL Client
 
 ```bash
 /opt/flink/bin/sql-client.sh
 ```
 
-SQL Client에서 아래 SQL 파일들을 순서대로 실행합니다.
+Run the SQL files in `flink/sql/` in order inside the SQL Client.
 
-> **주의:** Flink SQL Client는 세션이 종료되면 테이블 정의가 사라집니다.  
-> 매번 새 세션 시작 시 Step 1 → Step 2 → Step 3 순으로 실행해야 합니다.
+> **Important:** Flink SQL Client is session-based — table definitions are lost when the session ends.  
+> Always run DDLs in order at the start of each new session.
 
 ```sql
--- [Step 1] flink/sql/01_kafka_source.sql 내용 붙여넣기
--- [Step 2] flink/sql/02_kudu_aml_alerts.sql 내용 붙여넣기
--- [Step 3] flink/sql/03_large_cash_job.sql 내용 붙여넣기
--- [Step 4] flink/sql/04_smurfing_job.sql 내용 붙여넣기
+-- [Step 1] Paste contents of flink/sql/01_kafka_source.sql
+-- [Step 2] Paste contents of flink/sql/02_kudu_aml_alerts.sql
+-- [Step 3] Paste contents of flink/sql/03_large_cash_job.sql
+-- [Step 4] Paste contents of flink/sql/04_smurfing_job.sql
+```
+
+Or run all at once:
+
+```bash
+/opt/flink/bin/sql-client.sh -f flink/sql/05_run_all.sql
 ```
 
 ---
 
-## Step 7: Impala(Hue)에서 결과 확인
+## Step 7: Verify Results in Impala (Hue)
 
 ```sql
--- Hue Impala Editor에서 실행
+-- Run in Hue Impala Editor
 SELECT alert_type, COUNT(*) AS cnt, SUM(amount) AS total_inr
 FROM default.aml_alerts
 GROUP BY alert_type;
@@ -186,14 +191,14 @@ GROUP BY alert_type;
 
 ---
 
-## 문제 해결
+## Troubleshooting
 
-| 오류 | 원인 | 해결 |
+| Error | Cause | Fix |
 |------|------|------|
-| `UnsupportedClassVersionError: class file version 61.0` | Java 11로 실행 중 | `JAVA_HOME=/usr/lib/jvm/java-21` 설정 후 재시작 |
-| `rest.address must be set` | flink-conf.yaml 미설정 | `rest.address: localhost` 추가 |
-| `ClassNotFoundException: com.stumbleupon.async.Callback` | async JAR 누락 | `async-1.4.1.jar` 추가 |
-| `ServiceConfigurationError: DnsjavaInetAddressResolverProvider` | kudu-subprocess JAR 충돌 | `kudu-subprocess-*.jar` 제거 |
-| `NoClassDefFoundError: Missing required options: masters` | Kudu 옵션명 오류 | `'masters'` (kudu. prefix 없이) 사용 |
-| `Table 'kafka_aml_transactions' not found` | 새 세션에서 DDL 미실행 | 01_kafka_source.sql 먼저 실행 |
-| `ENV=unknown` | source config/env.conf 미실행 | `source config/env.conf` 후 실행 |
+| `UnsupportedClassVersionError: class file version 61.0` | Running on Java 11 | Set `JAVA_HOME=/usr/lib/jvm/java-21` and restart |
+| `rest.address must be set` | flink-conf.yaml not configured | Add `rest.address: localhost` |
+| `ClassNotFoundException: com.stumbleupon.async.Callback` | async JAR missing | Add `async-1.4.1.jar` to lib/ |
+| `ServiceConfigurationError: DnsjavaInetAddressResolverProvider` | kudu-subprocess JAR conflict | Remove `kudu-subprocess-*.jar` |
+| `Missing required options: masters` | Wrong Kudu option name | Use `'masters'` (not `kudu.masters`) |
+| `Table 'kafka_aml_transactions' not found` | DDL not run in this session | Run 01_kafka_source.sql first |
+| `ENV=unknown` | source config/env.conf not run | Run `source config/env.conf` before starting |

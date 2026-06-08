@@ -1,13 +1,13 @@
 """
-generate_aml_data.py — SBI AML 탐지 데모용 합성 거래 데이터 생성
+generate_aml_data.py — Generate synthetic transaction data for SBI AML detection demo
 
-sibling 프로젝트(sbi-realtime-fraud-detection)의 SDV 패턴을 기반으로
-AML 특화 패턴(Large Cash / Smurfing)을 추가합니다.
+Based on the sibling project (sbi-realtime-fraud-detection) SDV pattern,
+with added AML-specific patterns (Large Cash / Smurfing).
 
-사전 조건:
-    source config/env.conf    # 환경 변수 로드
+Prerequisites:
+    source config/env.conf    # Load environment variables
 
-사용법:
+Usage:
     python data_gen/generate_aml_data.py
     python data_gen/generate_aml_data.py --rows 5000 --output /tmp/aml-data
 """
@@ -27,7 +27,7 @@ from sdv.single_table import GaussianCopulaSynthesizer
 
 
 # ---------------------------------------------------------------------------
-# 환경 변수 (source config/env.conf 후 os.environ에서 읽음)
+# Environment variables (loaded via: source config/env.conf)
 # ---------------------------------------------------------------------------
 LARGE_CASH_THRESHOLD = int(os.environ.get("LARGE_CASH_THRESHOLD", "1000000"))
 SMURFING_TXN_COUNT   = int(os.environ.get("SMURFING_TXN_COUNT", "5"))
@@ -42,7 +42,7 @@ SMURFING_ACCOUNTS    = os.environ.get(
 ).split(",")
 
 # ---------------------------------------------------------------------------
-# 상수 (sibling 프로젝트와 동일)
+# Constants (same as sibling project)
 # ---------------------------------------------------------------------------
 CHANNELS = ["ATM", "NEFT", "IMPS", "UPI", "RTGS", "BRANCH"]
 
@@ -51,7 +51,7 @@ MERCHANT_CATS = [
     "PHARMACY", "JEWELLERY", "TRANSFER", "ATM_WITHDRAWAL", "ECOMMERCE",
 ]
 
-# 인도 주요 도시 좌표 (sibling 프로젝트와 동일)
+# Major Indian city coordinates (same as sibling project)
 CITY_COORDS = [
     (28.6139, 77.2090),  # New Delhi
     (19.0760, 72.8777),  # Mumbai
@@ -65,11 +65,11 @@ CITY_COORDS = [
 
 
 # ---------------------------------------------------------------------------
-# SDV 기반 정상 거래 생성 (sibling 패턴 그대로)
+# SDV-based normal transaction generation (same as sibling project)
 # ---------------------------------------------------------------------------
 
 def build_seed_dataframe(n: int = 2000) -> pd.DataFrame:
-    """SDV 학습용 시드 데이터프레임 생성"""
+    """Build seed dataframe for SDV training."""
     random.seed(42)
     np.random.seed(42)
 
@@ -97,7 +97,7 @@ def build_seed_dataframe(n: int = 2000) -> pd.DataFrame:
 
 
 def train_synthesizer(seed_df: pd.DataFrame) -> GaussianCopulaSynthesizer:
-    """SDV GaussianCopula 합성기 학습 (sibling 패턴 그대로)"""
+    """Train SDV GaussianCopula synthesizer (same as sibling project)."""
     metadata = SingleTableMetadata()
     metadata.detect_from_dataframe(seed_df)
 
@@ -114,27 +114,27 @@ def train_synthesizer(seed_df: pd.DataFrame) -> GaussianCopulaSynthesizer:
 
 
 def generate_normal_transactions(n_rows: int) -> pd.DataFrame:
-    """SDV로 정상 거래 생성"""
-    print("[1/3] 시드 데이터 2000건 생성 중...")
+    """Generate normal transactions using SDV."""
+    print("[1/3] Building seed dataset (2000 rows)...")
     seed_df = build_seed_dataframe(2000)
 
-    print("[2/3] SDV 합성기 학습 중...")
+    print("[2/3] Training SDV synthesizer...")
     synthesizer = train_synthesizer(seed_df)
 
-    print(f"[3/3] 합성 데이터 {n_rows}건 생성 중...")
+    print(f"[3/3] Generating {n_rows} synthetic transactions...")
     df = synthesizer.sample(num_rows=n_rows)
     df.insert(0, "transaction_id", [str(uuid.uuid4()) for _ in range(len(df))])
     return df
 
 
 # ---------------------------------------------------------------------------
-# AML 패턴 주입
+# AML pattern injection
 # ---------------------------------------------------------------------------
 
 def inject_large_cash(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Large Cash 패턴 주입:
-    지정 계좌에서 임계값(LARGE_CASH_THRESHOLD) 이상 거래 2~3건 생성
+    Inject Large Cash pattern:
+    Generate 2–3 transactions above LARGE_CASH_THRESHOLD for designated accounts.
     """
     rows = []
     for account_id in LARGE_CASH_ACCOUNTS:
@@ -157,16 +157,16 @@ def inject_large_cash(df: pd.DataFrame) -> pd.DataFrame:
             })
 
     lc_df = pd.DataFrame(rows)
-    print(f"  Large Cash 주입: {len(lc_df)}건 "
-          f"(계좌: {LARGE_CASH_ACCOUNTS}, 기준: ₹{LARGE_CASH_THRESHOLD:,})")
+    print(f"  Large Cash injected: {len(lc_df)} transactions "
+          f"(accounts: {LARGE_CASH_ACCOUNTS}, threshold: ₹{LARGE_CASH_THRESHOLD:,})")
     return pd.concat([df, lc_df], ignore_index=True)
 
 
 def inject_smurfing(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Smurfing 패턴 주입:
-    지정 계좌에서 SMURFING_WINDOW_MIN분 내 SMURFING_TXN_COUNT회 이상 거래
-    각 건은 임계값의 50~90% 사이 (의도적으로 임계값 회피)
+    Inject Smurfing pattern:
+    Generate SMURFING_TXN_COUNT+ transactions within SMURFING_WINDOW_MIN minutes
+    for designated accounts. Each transaction is below the threshold (intentional evasion).
     """
     max_single = int(LARGE_CASH_THRESHOLD * 0.9)
     min_single = int(LARGE_CASH_THRESHOLD * 0.5)
@@ -194,19 +194,20 @@ def inject_smurfing(df: pd.DataFrame) -> pd.DataFrame:
             })
 
     sm_df = pd.DataFrame(rows)
-    print(f"  Smurfing 주입: {len(sm_df)}건 "
-          f"(계좌: {SMURFING_ACCOUNTS}, {SMURFING_WINDOW_MIN}분/{SMURFING_TXN_COUNT}회 기준)")
+    print(f"  Smurfing injected: {len(sm_df)} transactions "
+          f"(accounts: {SMURFING_ACCOUNTS}, "
+          f"rule: {SMURFING_TXN_COUNT}+ within {SMURFING_WINDOW_MIN} min)")
     return pd.concat([df, sm_df], ignore_index=True)
 
 
 # ---------------------------------------------------------------------------
-# 저장 (JSONL — NiFi GetFile이 읽는 형식)
+# Save as JSONL (NiFi GetFile format)
 # ---------------------------------------------------------------------------
 
 def save_as_jsonl(df: pd.DataFrame, output_path: Path) -> None:
     """
-    JSON Lines 형식으로 저장.
-    timestamp → txn_time(epoch ms) 변환: SSB Flink DDL의 TO_TIMESTAMP_LTZ(txn_time, 3) 사용
+    Save as JSON Lines format.
+    Converts timestamp → txn_time (epoch ms) for SSB Flink DDL: TO_TIMESTAMP_LTZ(txn_time, 3)
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -218,44 +219,44 @@ def save_as_jsonl(df: pd.DataFrame, output_path: Path) -> None:
                 record["txn_time"] = int(dt.timestamp() * 1000)
             except Exception:
                 record["txn_time"] = int(datetime.utcnow().timestamp() * 1000)
-            record.pop("timestamp", None)  # timestamp 제거, txn_time으로 통일
+            record.pop("timestamp", None)  # Remove timestamp; use txn_time uniformly
             f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
 
 # ---------------------------------------------------------------------------
-# 메인
+# Main
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="SBI AML 데모 데이터 생성")
+    parser = argparse.ArgumentParser(description="Generate SBI AML demo transaction data")
     parser.add_argument("--rows",   type=int, default=DEMO_ROWS,
-                        help=f"정상 거래 건수 (기본: {DEMO_ROWS})")
+                        help=f"Number of normal transactions (default: {DEMO_ROWS})")
     parser.add_argument("--output", type=str, default=DATA_OUTPUT_DIR,
-                        help=f"출력 디렉토리 (기본: {DATA_OUTPUT_DIR})")
+                        help=f"Output directory (default: {DATA_OUTPUT_DIR})")
     args = parser.parse_args()
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n[AML 데이터 생성] ENV={os.environ.get('ENV_NAME', 'unknown')}")
-    print(f"  출력 디렉토리  : {output_dir}")
-    print(f"  정상 거래      : {args.rows}건")
-    print(f"  Large Cash 기준: ₹{LARGE_CASH_THRESHOLD:,}")
-    print(f"  Smurfing 기준  : {SMURFING_WINDOW_MIN}분 내 {SMURFING_TXN_COUNT}회")
+    print(f"\n[AML Data Generation] ENV={os.environ.get('ENV_NAME', 'unknown')}")
+    print(f"  Output directory   : {output_dir}")
+    print(f"  Normal transactions: {args.rows}")
+    print(f"  Large Cash threshold: ₹{LARGE_CASH_THRESHOLD:,}")
+    print(f"  Smurfing rule       : {SMURFING_TXN_COUNT}+ within {SMURFING_WINDOW_MIN} min")
     print()
 
-    # 1. SDV 정상 거래 생성
+    # 1. Generate normal transactions via SDV
     df = generate_normal_transactions(args.rows)
 
-    # 2. AML 패턴 주입
-    print("\n[AML 패턴 주입]")
+    # 2. Inject AML patterns
+    print("\n[AML Pattern Injection]")
     df = inject_large_cash(df)
     df = inject_smurfing(df)
 
-    # 3. 셔플 (패턴 노출 방지)
+    # 3. Shuffle (to hide pattern positions)
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
 
-    # 4. JSONL 저장
+    # 4. Save as JSONL
     timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     output_file = output_dir / f"aml_transactions_{timestamp_str}.jsonl"
     save_as_jsonl(df, output_file)
@@ -263,13 +264,13 @@ def main() -> None:
     lc_count = df[df["account_id"].isin(LARGE_CASH_ACCOUNTS)].shape[0]
     sm_count = df[df["account_id"].isin(SMURFING_ACCOUNTS)].shape[0]
 
-    print(f"\n[완료] 총 {len(df)}건 저장 → {output_file}")
-    print(f"  정상 거래   : {len(df) - lc_count - sm_count}건")
-    print(f"  Large Cash  : {lc_count}건")
-    print(f"  Smurfing    : {sm_count}건")
-    print(f"\n다음 단계:")
-    print(f"  [NiFi 방식] NiFi GetFile이 {output_dir} 를 자동으로 읽어 Kafka 전송")
-    print(f"  [직접 방식] python data_gen/kafka_producer.py")
+    print(f"\n[DONE] Saved {len(df)} records → {output_file}")
+    print(f"  Normal transactions: {len(df) - lc_count - sm_count}")
+    print(f"  Large Cash         : {lc_count}")
+    print(f"  Smurfing           : {sm_count}")
+    print(f"\nNext steps:")
+    print(f"  [NiFi method]   NiFi GetFile will automatically read {output_dir} and send to Kafka")
+    print(f"  [Direct method] python data_gen/kafka_producer.py")
 
 
 if __name__ == "__main__":

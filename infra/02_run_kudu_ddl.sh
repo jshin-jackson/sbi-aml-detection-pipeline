@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ================================================================
-# 02_run_kudu_ddl.sh — Kudu 테이블 생성 실행 스크립트
-# Phase 2에서 한 번만 실행합니다.
+# 02_run_kudu_ddl.sh — Run Kudu Table Creation
+# Run once in Phase 2.
 # ================================================================
 set -euo pipefail
 
@@ -10,16 +10,16 @@ source "${SCRIPT_DIR}/../config/env.conf"
 
 echo ""
 echo "================================================================"
-echo " Kudu 테이블 생성 (ENV: ${ENV_NAME})"
+echo " Kudu Table Creation (ENV: ${ENV_NAME})"
 echo " Kudu Masters: ${KUDU_MASTERS}"
 echo " Impala      : ${IMPALA_HOST}:${IMPALA_PORT}"
 echo "================================================================"
 
-# Kerberos 인증
+# Kerberos authentication
 kinit -kt "${KEYTAB}" "${PRINCIPAL}"
-echo "[Kerberos] kinit 완료: ${PRINCIPAL}"
+echo "[Kerberos] kinit succeeded: ${PRINCIPAL}"
 
-# SQL 파일의 ${KUDU_MASTERS} 변수를 실제 값으로 치환 (sed 사용 — gettext 불필요)
+# Substitute ${KUDU_MASTERS} in SQL file with actual value (uses sed — no gettext required)
 RENDERED_SQL=$(mktemp /tmp/kudu-ddl-XXXXXX.sql)
 sed "s|\${KUDU_MASTERS}|${KUDU_MASTERS}|g" "${SCRIPT_DIR}/02_kudu_ddl.sql" > "${RENDERED_SQL}"
 
@@ -28,10 +28,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[SQL] 변수 치환 완료 → ${RENDERED_SQL}"
+echo "[SQL] Variable substitution complete → ${RENDERED_SQL}"
 echo ""
 
-# Impala shell로 DDL 실행
+# Execute DDL via Impala shell
 impala-shell \
   -k \
   --ssl \
@@ -40,6 +40,6 @@ impala-shell \
   -f "${RENDERED_SQL}"
 
 echo ""
-echo "[완료] Kudu 테이블 생성 완료!"
-echo "  생성된 테이블: aml_transactions / aml_alerts / aml_risk_score"
-echo "  다음 단계: Ranger 정책 적용 후 python data_gen/generate_aml_data.py"
+echo "[DONE] Kudu tables created successfully!"
+echo "  Tables: aml_transactions / aml_alerts / aml_risk_score"
+echo "  Next step: Apply Ranger policies, then run: python data_gen/generate_aml_data.py"

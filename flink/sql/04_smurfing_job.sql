@@ -1,21 +1,21 @@
 -- ================================================================
--- 04_smurfing_job.sql — Pattern 2: Smurfing 탐지
+-- 04_smurfing_job.sql — Pattern 2: Smurfing Detection
 -- Flink SQL Client (Standalone)
 --
--- 전제: 01_kafka_source.sql, 02_kudu_aml_alerts.sql 먼저 실행
+-- Prerequisite: Run 01_kafka_source.sql and 02_kudu_aml_alerts.sql first
 --
--- 탐지 기준:
---   동일 계좌에서 30분 내에 5회 이상 거래
---   (각 건은 임계값 미만이지만 합산하면 의심 패턴)
+-- Detection rule:
+--   Same account makes 5+ transactions within 30 minutes
+--   (each below the threshold — intentional evasion behavior)
 --
--- 방법:
---   TUMBLE 윈도우: 30분 단위 고정 시간창으로 계좌별 거래 집계
---   → 5회 이상이면 Alert 발생
+-- Method:
+--   TUMBLE window: aggregate transactions per account in fixed 30-min windows.
+--   Raise an alert when transaction count reaches 5 or more.
 -- ================================================================
 
 INSERT INTO aml_alerts
 SELECT
-  -- alert_id: 'SM-' + 계좌ID + 윈도우 시작 시각 (30분 창마다 고유 ID)
+  -- alert_id: 'SM-' + account_id + window start time (unique per 30-min window)
   CONCAT(
     'SM-',
     account_id,
@@ -25,26 +25,26 @@ SELECT
 
   account_id,
 
-  -- 알람 유형
+  -- Alert type
   'SMURFING'                     AS alert_type,
 
-  -- 30분 창 내 총 거래 금액
+  -- Total amount in the 30-minute window
   SUM(amount)                    AS amount,
 
-  -- 30분 창 내 거래 건수
+  -- Number of transactions in the window
   CAST(COUNT(*) AS INT)          AS txn_count,
 
-  -- 알람 생성 시각 (epoch ms)
+  -- Alert creation time (epoch ms)
   UNIX_TIMESTAMP() * 1000        AS window_start,
   UNIX_TIMESTAMP() * 1000        AS window_end,
   UNIX_TIMESTAMP() * 1000        AS created_at
 
 FROM kafka_aml_transactions
 
--- 계좌 + 30분 고정 시간창으로 그룹핑
+-- Group by account + fixed 30-minute window
 GROUP BY
   account_id,
   TUMBLE(event_time, INTERVAL '30' MINUTE)
 
--- 핵심 탐지 조건: 30분 내 5회 이상
+-- Core detection rule: 5+ transactions in 30 minutes
 HAVING COUNT(*) >= 5;

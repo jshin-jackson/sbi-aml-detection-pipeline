@@ -1,14 +1,14 @@
 -- ================================================================
--- 02_kudu_aml_alerts.sql — Kudu Sink Table 생성 (aml_alerts)
--- Flink SQL Client (Standalone) — 매 세션 시작 시 실행
+-- 02_kudu_aml_alerts.sql — Create Kudu Sink Table (aml_alerts)
+-- Flink SQL Client (Standalone) — run at the start of every session
 --
--- 전제: Kudu 테이블이 이미 Impala DDL로 생성되어 있어야 합니다.
---   → infra/02_run_kudu_ddl.sh 실행 또는 Hue Impala Editor에서 DDL 실행
+-- Prerequisite: Kudu table must already exist (created via Impala DDL).
+--   → Run infra/02_run_kudu_ddl.sh, or create manually in Hue Impala Editor
 -- ================================================================
--- Kudu 커넥터 옵션:
+-- Kudu connector options:
 --   'connector'  = 'kudu'
---   'masters'    = '<kudu-master:port>'   (kudu.masters 아님 — 주의)
---   'table-name' = '<kudu-table-name>'    (Impala 생성 시 default.* 형식)
+--   'masters'    = '<kudu-master:port>'   (NOT kudu.masters — important!)
+--   'table-name' = '<kudu-table-name>'    (use 'default.*' format if created by Impala)
 -- ================================================================
 
 CREATE TABLE aml_alerts (
@@ -23,8 +23,8 @@ CREATE TABLE aml_alerts (
   PRIMARY KEY (alert_id) NOT ENFORCED
 ) WITH (
   'connector'  = 'kudu',
-  -- Kudu Master 주소 (고객 환경에서 변경)
+  -- Kudu Master address (update for customer environment)
   'masters'    = 'ccycloud-1.jshin.root.comops.site:7051',
-  -- Kudu 테이블명: Impala로 생성 시 'default.<table>' 형식
+  -- Kudu table name: use 'default.<table>' format when created by Impala
   'table-name' = 'default.aml_alerts'
 );

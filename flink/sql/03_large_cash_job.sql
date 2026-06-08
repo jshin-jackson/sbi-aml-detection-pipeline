@@ -1,41 +1,41 @@
 -- ================================================================
--- 03_large_cash_job.sql — Pattern 1: Large Cash 탐지
+-- 03_large_cash_job.sql — Pattern 1: Large Cash Detection
 -- Flink SQL Client (Standalone)
 --
--- 전제: 01_kafka_source.sql, 02_kudu_aml_alerts.sql 먼저 실행
+-- Prerequisite: Run 01_kafka_source.sql and 02_kudu_aml_alerts.sql first
 --
--- 탐지 기준:
---   amount >= 1000000 INR (₹10 lakh, RBI CTR 기준)
+-- Detection rule:
+--   amount >= 1000000 INR (₹10 lakh, RBI CTR threshold)
 --
--- 동작:
---   Kafka에서 거래를 실시간으로 읽어
---   고액 거래 발생 즉시 aml_alerts 테이블에 기록
+-- Behavior:
+--   Reads transactions from Kafka in real time and immediately
+--   records any high-value transaction in the aml_alerts table.
 -- ================================================================
 
 INSERT INTO aml_alerts
 SELECT
-  -- alert_id: 'LC-' + 거래ID (중복 방지)
+  -- alert_id: 'LC-' + transaction_id (ensures uniqueness)
   CONCAT('LC-', transaction_id)  AS alert_id,
 
   account_id,
 
-  -- 알람 유형
+  -- Alert type
   'LARGE_CASH'                   AS alert_type,
 
-  -- 거래 금액
+  -- Transaction amount
   amount,
 
-  -- 거래 건수 (Large Cash는 단건)
+  -- Transaction count (Large Cash is always a single transaction)
   1                              AS txn_count,
 
-  -- 시간창 (단건이므로 거래 시각 그대로)
+  -- Window time (single transaction — use txn_time directly)
   txn_time                       AS window_start,
   txn_time                       AS window_end,
 
-  -- 알람 생성 시각 (epoch ms)
+  -- Alert creation time (epoch ms)
   UNIX_TIMESTAMP() * 1000        AS created_at
 
 FROM kafka_aml_transactions
 
--- 핵심 탐지 조건: ₹10 lakh 이상
+-- Core detection rule: ₹10 lakh or above
 WHERE amount >= 1000000;

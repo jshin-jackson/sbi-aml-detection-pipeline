@@ -1,10 +1,10 @@
 {
-  "_comment": "SBI AML Pipeline — Ranger 정책 템플릿",
-  "_note": "Ranger UI에서 수동으로 적용하거나 Ranger REST API로 import합니다.",
-  "_user": "systest (모든 컴포넌트 단일 계정)",
+  "_comment": "SBI AML Pipeline — Ranger Policy Template",
+  "_note": "Apply manually via Ranger UI or import via Ranger REST API.",
+  "_user": "systest (single account for all components)",
   "policies": [
     {
-      "_comment": "Kafka: 토픽 생성/관리 권한 (kafka_setup.sh 실행용)",
+      "_comment": "Kafka: Topic admin permissions (required for kafka_setup.sh --create)",
       "service": "cm_kafka",
       "name": "aml-kafka-admin",
       "isEnabled": true,
@@ -32,7 +32,7 @@
       ]
     },
     {
-      "_comment": "Kafka: 거래 토픽 Producer 권한 (NiFi → Kafka)",
+      "_comment": "Kafka: Topic producer permissions (NiFi → Kafka)",
       "service": "cm_kafka",
       "name": "aml-kafka-producer",
       "isEnabled": true,
@@ -56,7 +56,7 @@
       ]
     },
     {
-      "_comment": "Kafka: 거래 토픽 Consumer 권한 (SSB/Flink → Kafka)",
+      "_comment": "Kafka: Topic consumer permissions (SSB/Flink → Kafka)",
       "service": "cm_kafka",
       "name": "aml-kafka-consumer",
       "isEnabled": true,
@@ -80,7 +80,7 @@
       ]
     },
     {
-      "_comment": "Kafka: Consumer Group 권한",
+      "_comment": "Kafka: Consumer group permissions",
       "service": "cm_kafka",
       "name": "aml-kafka-consumer-group",
       "isEnabled": true,
@@ -104,7 +104,7 @@
       ]
     },
     {
-      "_comment": "Kudu: AML 테이블 읽기/쓰기 권한",
+      "_comment": "Kudu: AML table read/write permissions",
       "service": "cm_kudu",
       "name": "aml-kudu-readwrite",
       "isEnabled": true,
@@ -128,7 +128,7 @@
       ]
     },
     {
-      "_comment": "Hive/Impala: AML 테이블 접근 권한",
+      "_comment": "Hive/Impala: AML table access permissions",
       "service": "cm_hive",
       "name": "aml-hive-access",
       "isEnabled": true,

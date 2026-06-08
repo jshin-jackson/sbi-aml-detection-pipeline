@@ -1,27 +1,23 @@
 """
-kafka_producer.py — AML 거래 데이터를 Kafka로 직접 전송 (NiFi 없이)
+kafka_producer.py — Send AML transaction data directly to Kafka (without NiFi)
 
-sibling 프로젝트(sbi-realtime-fraud-detection)의 kafka_producer.py 패턴을
-AML 프로젝트에 맞게 적용합니다.
-
-보안:
+Security:
   - SASL_SSL + GSSAPI (Kerberos)
-  - kafka-python 사용 (순수 Python — air-gapped 환경 호환)
-  - kinit으로 OS TGT 획득 → kafka-python이 GSSAPI로 참조
+  - Uses kafka-python (pure Python — air-gapped compatible)
+  - kinit acquires OS TGT → kafka-python uses it via GSSAPI
 
-사전 조건:
-    source config/env.conf    # 환경 변수 로드
-    # venv 활성화
+Prerequisites:
+    source config/env.conf    # Load environment variables
     source /tmp/aml-venv/bin/activate
 
-사용법:
-    # DATA_OUTPUT_DIR의 최신 파일 자동 선택하여 전송
+Usage:
+    # Auto-select the most recent JSONL file from DATA_OUTPUT_DIR
     python data_gen/kafka_producer.py
 
-    # 특정 파일 전송
+    # Send a specific file
     python data_gen/kafka_producer.py --input /tmp/aml-data/aml_transactions_20260607.jsonl
 
-    # 인라인 생성 후 바로 전송 (SDV 학습 포함)
+    # Generate inline and send immediately (includes SDV training)
     python data_gen/kafka_producer.py --rows 2000 --rate 10
 """
 
@@ -41,7 +37,7 @@ from kafka.errors import KafkaError
 
 
 # ---------------------------------------------------------------------------
-# 환경 변수 (source config/env.conf 후 os.environ에서 읽음)
+# Environment variables (loaded via: source config/env.conf)
 # ---------------------------------------------------------------------------
 KAFKA_BROKERS   = os.environ.get("KAFKA_BROKERS",   "localhost:9093")
 KAFKA_TOPIC_TXN = os.environ.get("KAFKA_TOPIC_TXN", "sbi-aml-transactions")
@@ -54,17 +50,17 @@ DEMO_RATE       = int(os.environ.get("DEMO_RATE", "5"))
 
 
 # ---------------------------------------------------------------------------
-# Kerberos 인증 (sibling 패턴 그대로)
+# Kerberos authentication (same as sibling project)
 # ---------------------------------------------------------------------------
 
 def kinit() -> None:
     """
-    Kerberos TGT를 keytab으로 갱신합니다.
-    kafka-python은 OS 수준 Kerberos 티켓 캐시(GSSAPI)를 사용하므로
-    Producer 생성 전 kinit이 반드시 필요합니다.
+    Acquire Kerberos TGT using keytab.
+    kafka-python uses the OS-level Kerberos ticket cache (GSSAPI),
+    so kinit must be called before creating the producer.
     """
     if not os.path.exists(KEYTAB):
-        print(f"[경고] keytab 파일 없음({KEYTAB}), kinit 생략합니다.", file=sys.stderr)
+        print(f"[WARNING] Keytab not found ({KEYTAB}), skipping kinit.", file=sys.stderr)
         return
     try:
         subprocess.run(
@@ -72,29 +68,29 @@ def kinit() -> None:
             check=True,
             capture_output=True,
         )
-        print(f"[Kerberos] kinit 성공: {PRINCIPAL}")
+        print(f"[Kerberos] kinit succeeded: {PRINCIPAL}")
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        print(f"[경고] kinit 실패 (기존 티켓 사용 시도): {e}", file=sys.stderr)
+        print(f"[WARNING] kinit failed (attempting with existing ticket): {e}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
-# Kafka Producer 생성 (sibling 패턴 그대로)
+# Kafka Producer (same as sibling project)
 # ---------------------------------------------------------------------------
 
 def build_producer() -> KafkaProducer:
     """
-    SASL_SSL + GSSAPI KafkaProducer 생성
-    SSL  : ssl.create_default_context() + CA PEM (Auto-TLS 환경)
-    Kerberos: kinit으로 획득한 OS TGT를 GSSAPI가 참조
+    Create SASL_SSL + GSSAPI KafkaProducer.
+    SSL  : ssl.create_default_context() + CA PEM (Auto-TLS environment)
+    Kerberos: Uses TGT acquired by kinit via GSSAPI
     """
     kinit()
 
     ssl_context = ssl.create_default_context()
     if os.path.exists(CA_PEM):
         ssl_context.load_verify_locations(cafile=CA_PEM)
-        print(f"[SSL] CA 인증서 로드: {CA_PEM}")
+        print(f"[SSL] CA certificate loaded: {CA_PEM}")
     else:
-        print(f"[경고] CA PEM 없음({CA_PEM}), SSL 검증 비활성화", file=sys.stderr)
+        print(f"[WARNING] CA PEM not found ({CA_PEM}), disabling SSL verification", file=sys.stderr)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
@@ -114,24 +110,24 @@ def build_producer() -> KafkaProducer:
 
 
 # ---------------------------------------------------------------------------
-# 전송
+# Send
 # ---------------------------------------------------------------------------
 
 def produce_from_jsonl(file_path: str, rate: int) -> int:
-    """JSONL 파일을 한 줄씩 읽어 Kafka로 전송"""
+    """Read JSONL file line-by-line and send each line as a Kafka message."""
     producer = build_producer()
     sleep_interval = 1.0 / rate if rate > 0 else 0
     sent = 0
 
-    print(f"\n[Kafka 전송]")
+    print(f"\n[Kafka Send]")
     print(f"  Broker : {KAFKA_BROKERS}")
     print(f"  Topic  : {KAFKA_TOPIC_TXN}")
     print(f"  File   : {file_path}")
-    print(f"  Rate   : {rate}건/초")
+    print(f"  Rate   : {rate} msg/sec")
     print()
 
     def _on_error(e: KafkaError) -> None:
-        print(f"[오류] 전송 실패: {e}", file=sys.stderr)
+        print(f"[ERROR] Send failed: {e}", file=sys.stderr)
 
     try:
         with open(file_path, encoding="utf-8") as f:
@@ -142,7 +138,7 @@ def produce_from_jsonl(file_path: str, rate: int) -> int:
                 try:
                     record = json.loads(line)
                 except json.JSONDecodeError as e:
-                    print(f"[경고] JSON 파싱 실패, 건너뜀: {e}", file=sys.stderr)
+                    print(f"[WARNING] JSON parse failed, skipping: {e}", file=sys.stderr)
                     continue
 
                 key   = str(record.get("account_id", "unknown")).encode("utf-8")
@@ -154,19 +150,19 @@ def produce_from_jsonl(file_path: str, rate: int) -> int:
                 sent += 1
 
                 if sent % 500 == 0:
-                    print(f"  전송: {sent}건...")
+                    print(f"  Sent: {sent} records...")
 
                 if sleep_interval > 0:
                     time.sleep(sleep_interval)
 
         producer.flush(timeout=30)
-        print(f"\n  전송 완료: {sent}건 → {KAFKA_TOPIC_TXN}")
+        print(f"\n  Done: {sent} records → {KAFKA_TOPIC_TXN}")
 
     except KafkaError as e:
-        print(f"[오류] Kafka 전송 중 오류: {e}", file=sys.stderr)
+        print(f"[ERROR] Kafka send error: {e}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
-        print(f"\n  중단됨. {sent}건 전송 완료.")
+        print(f"\n  Interrupted. {sent} records sent.")
         producer.flush(timeout=10)
     finally:
         producer.close()
@@ -175,25 +171,25 @@ def produce_from_jsonl(file_path: str, rate: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 메인
+# Main
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="SBI AML 거래 데이터 Kafka Producer")
+    parser = argparse.ArgumentParser(description="SBI AML Transaction Data Kafka Producer")
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--input", type=str,
-                        help="전송할 JSONL 파일 경로")
+                        help="Path to JSONL file to send")
     source.add_argument("--rows",  type=int,
-                        help="인라인 SDV 생성 후 전송할 건수")
+                        help="Generate inline and send (includes SDV training)")
 
     parser.add_argument("--rate", type=int, default=DEMO_RATE,
-                        help=f"초당 전송 건수 (기본: {DEMO_RATE}, 0=최대 속도)")
+                        help=f"Messages per second (default: {DEMO_RATE}, 0=max speed)")
     args = parser.parse_args()
 
     print(f"[Kafka Producer] ENV={os.environ.get('ENV_NAME', 'unknown')}")
 
     if args.rows:
-        # 인라인 생성 후 전송
+        # Inline generation + send
         sys.path.insert(0, str(Path(__file__).parent))
         from generate_aml_data import (
             generate_normal_transactions,
@@ -202,7 +198,7 @@ def main() -> None:
             save_as_jsonl,
         )
 
-        print(f"\n[인라인 생성] {args.rows}건 생성 후 전송")
+        print(f"\n[Inline Generation] Generating {args.rows} records and sending")
         df = generate_normal_transactions(args.rows)
         df = inject_large_cash(df)
         df = inject_smurfing(df)
@@ -217,15 +213,15 @@ def main() -> None:
         produce_from_jsonl(args.input, args.rate)
 
     else:
-        # DATA_OUTPUT_DIR에서 가장 최신 JSONL 파일 자동 선택
+        # Auto-select most recent JSONL file from DATA_OUTPUT_DIR
         pattern = str(Path(DATA_OUTPUT_DIR) / "*.jsonl")
         files = sorted(glob.glob(pattern), reverse=True)
         if not files:
-            print(f"[오류] {DATA_OUTPUT_DIR}에 .jsonl 파일이 없습니다.")
-            print(f"       먼저 실행: python data_gen/generate_aml_data.py")
+            print(f"[ERROR] No .jsonl files found in {DATA_OUTPUT_DIR}.")
+            print(f"        Run first: python data_gen/generate_aml_data.py")
             sys.exit(1)
         latest = files[0]
-        print(f"\n[최신 파일 자동 선택] {latest}")
+        print(f"\n[Auto-selected most recent file] {latest}")
         produce_from_jsonl(latest, args.rate)
 
 

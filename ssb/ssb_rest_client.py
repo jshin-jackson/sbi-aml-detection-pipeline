@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-ssb_rest_client.py — SSB REST API Python 클라이언트 (Secondary 방식)
+ssb_rest_client.py — SSB REST API Python Client (Secondary method)
 
-CSA 1.9.0.1에서 PyFlink 대신 사용합니다.
-SQL 내용은 SSB Web UI 방식과 완전히 동일합니다.
+Used instead of PyFlink on CSA 1.9.0.1.
+The SQL logic is identical to the SSB Web UI method.
 
-사용법:
-  # 환경 설정 후 실행
+Usage:
+  # Load env, authenticate, then run
   source config/env.conf
   kinit -kt /opt/cloudera/systest.keytab systest@ROOT.COMOPS.SITE
   python ssb/ssb_rest_client.py
 
-  # 특정 Job만 실행
+  # Submit a specific job only
   python ssb/ssb_rest_client.py --job large_cash
   python ssb/ssb_rest_client.py --job smurfing
 
-  # 실행 중인 Job 목록 확인
+  # List running jobs
   python ssb/ssb_rest_client.py --list
 
-  # Job 중지
+  # Stop a job
   python ssb/ssb_rest_client.py --stop aml_large_cash
 """
 
@@ -33,8 +33,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # ----------------------------------------------------------------
-# 환경 변수 (source config/env.conf 후 os.environ에서 읽음)
-# python-dotenv 미사용 — generate_aml_data.py / kafka_producer.py와 동일 방식
+# Environment variables (loaded via: source config/env.conf)
+# No python-dotenv used — consistent with generate_aml_data.py / kafka_producer.py
 # ----------------------------------------------------------------
 SSB_HOST     = os.environ.get("SSB_HOST",     "https://localhost:18121")
 SSB_USER     = os.environ.get("SSB_USER",     "systest")
@@ -46,19 +46,19 @@ PRINCIPAL    = os.environ.get("PRINCIPAL", "systest@ROOT.COMOPS.SITE")
 
 
 def kinit():
-    """Kerberos TGT 발급"""
+    """Acquire Kerberos TGT."""
     result = subprocess.run(
         ["kinit", "-kt", KEYTAB, PRINCIPAL],
         capture_output=True, text=True
     )
     if result.returncode != 0:
-        print(f"[ERROR] kinit 실패: {result.stderr}")
+        print(f"[ERROR] kinit failed: {result.stderr}")
         sys.exit(1)
-    print(f"[Kerberos] 인증 완료: {PRINCIPAL}")
+    print(f"[Kerberos] Authentication succeeded: {PRINCIPAL}")
 
 
 def render_sql(tpl_path: Path) -> str:
-    """SQL 템플릿의 환경 변수를 실제 값으로 치환 (envsubst 불필요 — 순수 Python)"""
+    """Render SQL template by substituting environment variables (pure Python — no envsubst)."""
     text = tpl_path.read_text(encoding="utf-8")
     vars_to_replace = [
         "KAFKA_BROKERS", "KAFKA_TOPIC_TXN",
@@ -72,7 +72,7 @@ def render_sql(tpl_path: Path) -> str:
 
 
 class SSBClient:
-    """Cloudera SQL Stream Builder REST API 클라이언트"""
+    """Cloudera SQL Stream Builder REST API client."""
 
     def __init__(self):
         self.base_url = SSB_HOST.rstrip("/")
@@ -92,11 +92,11 @@ class SSBClient:
         return resp.json() if resp.content else {}
 
     def list_jobs(self) -> list:
-        """실행 중인 Job 목록 조회"""
+        """List running jobs."""
         return self._request("GET", "/jobs")
 
     def submit_job(self, name: str, sql: str, parallelism: int = 2) -> dict:
-        """SQL Job 제출 및 실행"""
+        """Submit and start a SQL job."""
         payload = {
             "name":        name,
             "sql":         sql,
@@ -105,18 +105,18 @@ class SSBClient:
         return self._request("POST", "/jobs", json=payload)
 
     def stop_job(self, job_name: str) -> dict:
-        """Job 중지"""
+        """Stop a job by name."""
         jobs = self.list_jobs()
         target = next((j for j in jobs if j.get("name") == job_name), None)
         if not target:
-            print(f"[WARN] Job을 찾을 수 없습니다: {job_name}")
+            print(f"[WARNING] Job not found: {job_name}")
             return {}
         job_id = target["id"]
         return self._request("DELETE", f"/jobs/{job_id}")
 
 
 def submit_all(client: SSBClient, tpl_dir: Path):
-    """3개 SQL Job 모두 제출"""
+    """Submit all 3 SQL jobs."""
     jobs = [
         ("aml_kafka_source",  tpl_dir / "01_kafka_source_table.sql.tpl", 1),
         ("aml_large_cash",    tpl_dir / "02_large_cash_job.sql.tpl",     2),
@@ -125,25 +125,25 @@ def submit_all(client: SSBClient, tpl_dir: Path):
 
     for name, tpl_path, parallelism in jobs:
         if not tpl_path.exists():
-            print(f"[ERROR] 템플릿 파일 없음: {tpl_path}")
+            print(f"[ERROR] Template not found: {tpl_path}")
             continue
 
         print(f"\n[Submit] {name} ...")
         sql = render_sql(tpl_path)
         result = client.submit_job(name, sql, parallelism)
-        print(f"  Job ID   : {result.get('id', 'N/A')}")
-        print(f"  Status   : {result.get('status', 'N/A')}")
+        print(f"  Job ID : {result.get('id', 'N/A')}")
+        print(f"  Status : {result.get('status', 'N/A')}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SSB REST API Python 클라이언트 — AML Job 관리",
+        description="SSB REST API Python Client — AML Job Management",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--job",  choices=["large_cash", "smurfing", "all"],
-                        default="all", help="실행할 Job (기본: all)")
-    parser.add_argument("--list", action="store_true", help="실행 중인 Job 목록 출력")
-    parser.add_argument("--stop", type=str, metavar="JOB_NAME", help="Job 중지")
+                        default="all", help="Job to run (default: all)")
+    parser.add_argument("--list", action="store_true", help="List running jobs")
+    parser.add_argument("--stop", type=str, metavar="JOB_NAME", help="Stop a job")
     args = parser.parse_args()
 
     tpl_dir = Path(__file__).parent
@@ -152,30 +152,30 @@ def main():
     print(f"  SSB Host : {SSB_HOST}")
     print(f"  SSB User : {SSB_USER}")
 
-    # Kerberos 인증
+    # Kerberos authentication
     kinit()
 
     client = SSBClient()
 
     if args.list:
-        print("\n[실행 중인 Jobs]")
+        print("\n[Running Jobs]")
         jobs = client.list_jobs()
         if not jobs:
-            print("  (실행 중인 Job 없음)")
+            print("  (no running jobs)")
         else:
             for job in jobs:
                 print(f"  - {job.get('name')} [{job.get('status')}] id={job.get('id')}")
         return
 
     if args.stop:
-        print(f"\n[Job 중지] {args.stop}")
+        print(f"\n[Stop Job] {args.stop}")
         result = client.stop_job(args.stop)
-        print(f"  결과: {result}")
+        print(f"  Result: {result}")
         return
 
-    # Job 제출
+    # Submit jobs
     print(f"\n================================================================")
-    print(f" SSB Job 제출 시작 (--job={args.job})")
+    print(f" Submitting SSB Jobs (--job={args.job})")
     print(f"================================================================")
 
     if args.job == "all":
@@ -183,15 +183,15 @@ def main():
     elif args.job == "large_cash":
         sql = render_sql(tpl_dir / "02_large_cash_job.sql.tpl")
         result = client.submit_job("aml_large_cash", sql, 2)
-        print(f"  제출 완료: {result}")
+        print(f"  Submitted: {result}")
     elif args.job == "smurfing":
         sql = render_sql(tpl_dir / "03_smurfing_job.sql.tpl")
         result = client.submit_job("aml_smurfing", sql, 2)
-        print(f"  제출 완료: {result}")
+        print(f"  Submitted: {result}")
 
-    print(f"\n[완료] Job 제출 완료!")
-    print(f"  실행 확인: {SSB_HOST} (SSB Web UI)")
-    print(f"  또는: python ssb/ssb_rest_client.py --list")
+    print(f"\n[DONE] Job submission complete!")
+    print(f"  Verify in SSB Web UI: {SSB_HOST}")
+    print(f"  Or run: python ssb/ssb_rest_client.py --list")
 
 
 if __name__ == "__main__":

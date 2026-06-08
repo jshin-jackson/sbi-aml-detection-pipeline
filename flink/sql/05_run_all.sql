@@ -1,11 +1,11 @@
 -- ================================================================
--- 05_run_all.sql — 전체 AML 탐지 Job 일괄 실행
+-- 05_run_all.sql — Run All AML Detection Jobs at Once
 -- Flink SQL Client (Standalone)
 --
--- 사용법:
+-- Usage:
 --   /opt/flink/bin/sql-client.sh -f flink/sql/05_run_all.sql
 --
--- 또는 SQL Client 접속 후 각 파일을 순서대로 붙여넣기:
+-- Or paste each file manually in order in the SQL Client:
 --   01_kafka_source.sql → 02_kudu_aml_alerts.sql → 03_large_cash_job.sql → 04_smurfing_job.sql
 -- ================================================================
 
@@ -49,7 +49,7 @@ CREATE TABLE aml_alerts (
   'table-name' = 'default.aml_alerts'
 );
 
--- [Step 3] Large Cash 탐지 Job
+-- [Step 3] Large Cash Detection Job
 INSERT INTO aml_alerts
 SELECT
   CONCAT('LC-', transaction_id) AS alert_id,
@@ -63,7 +63,7 @@ SELECT
 FROM kafka_aml_transactions
 WHERE amount >= 1000000;
 
--- [Step 4] Smurfing 탐지 Job
+-- [Step 4] Smurfing Detection Job
 INSERT INTO aml_alerts
 SELECT
   CONCAT('SM-', account_id, '-',
