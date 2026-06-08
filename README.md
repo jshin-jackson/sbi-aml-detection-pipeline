@@ -75,6 +75,19 @@ Step 8  결과 확인     bash scripts/run_impala.sh
 
 ---
 
+## AML 탐지 실행 방식 (2가지)
+
+| 방식 | 도구 | 대상 환경 | 가이드 |
+|------|------|----------|--------|
+| **Primary** | CSA / SSB Web UI + Python REST | CFM + CSA 설치된 환경 | `ssb/` 폴더 |
+| **Standalone** | Apache Flink SQL Client (직접 설치) | CFM/CSA 미설치 환경 | `flink/` 폴더 |
+
+> Standalone 방식은 Apache Flink 1.20.1을 직접 설치하여 SSB 없이  
+> Flink SQL Client만으로 AML 탐지 Job을 실행합니다.  
+> 설치 방법: `flink/SETUP_GUIDE.md`
+
+---
+
 ## 프로젝트 구조
 
 ```
@@ -110,6 +123,14 @@ sbi-aml-detection-pipeline/
 │   ├── render_sql.sh               SQL 렌더링 (Web UI 방식)
 │   └── ssb_rest_client.py          Python API 방식 (자동 제출)
 │
+├── flink/                          ← [Standalone Flink — CFM/CSA 미설치 환경용]
+│   ├── SETUP_GUIDE.md              Flink 1.20.1 설치 가이드 (JAR 구성, flink-conf.yaml)
+│   └── sql/
+│       ├── 01_kafka_source.sql     Kafka Source Table DDL
+│       ├── 02_kudu_aml_alerts.sql  Kudu Sink Table DDL
+│       ├── 03_large_cash_job.sql   Large Cash 탐지 INSERT
+│       ├── 04_smurfing_job.sql     Smurfing 탐지 INSERT
+│       └── 05_run_all.sql          전체 Job 일괄 실행
 └── impala/
     └── demo_queries.sql            Demo 검증 쿼리 5개
 ```
