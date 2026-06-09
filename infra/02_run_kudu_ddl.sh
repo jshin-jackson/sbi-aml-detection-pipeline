@@ -16,8 +16,8 @@ echo " Impala      : ${IMPALA_HOST}:${IMPALA_PORT}"
 echo "================================================================"
 
 # Kerberos 인증
-kinit -kt "${KEYTAB}" "${PRINCIPAL}"
-echo "[Kerberos] kinit 완료: ${PRINCIPAL}"
+kinit -kt "${KAFKA_KEYTAB}" "${KAFKA_PRINCIPAL}"
+echo "[Kerberos] kinit 완료: ${KAFKA_PRINCIPAL}"
 
 # SQL 파일의 ${KUDU_MASTERS} 변수를 실제 값으로 치환 (sed 사용 — gettext 불필요)
 RENDERED_SQL=$(mktemp /tmp/kudu-ddl-XXXXXX.sql)

@@ -45,10 +45,14 @@ from kafka.errors import KafkaError
 # ---------------------------------------------------------------------------
 KAFKA_BROKERS   = os.environ.get("KAFKA_BROKERS",   "localhost:9093")
 KAFKA_TOPIC_TXN = os.environ.get("KAFKA_TOPIC_TXN", "sbi-aml-transactions")
-KEYTAB          = os.environ.get("KEYTAB",           "/opt/cloudera/systest.keytab")
-PRINCIPAL       = os.environ.get("PRINCIPAL",        "systest@ROOT.COMOPS.SITE")
-CA_PEM          = os.environ.get("CA_PEM",
-                  "/var/lib/cloudera-scm-agent/agent-cert/cm-auto-global_cacerts.pem")
+
+# Kafka 전용 인증 설정 (sibling 프로젝트 패턴 — KAFKA_* 접두어)
+# config/env.conf 에서 KAFKA_KEYTAB=${KEYTAB}, KAFKA_PRINCIPAL=${PRINCIPAL} 로 설정됨
+KAFKA_KEYTAB    = os.environ.get("KAFKA_KEYTAB",    os.environ.get("KEYTAB",     "/opt/cloudera/systest.keytab"))
+KAFKA_PRINCIPAL = os.environ.get("KAFKA_PRINCIPAL", os.environ.get("PRINCIPAL",  "systest@ROOT.COMOPS.SITE"))
+KAFKA_CA_PEM    = os.environ.get("KAFKA_CA_PEM",    os.environ.get("CA_PEM",
+                  "/var/lib/cloudera-scm-agent/agent-cert/cm-auto-global_cacerts.pem"))
+
 DATA_OUTPUT_DIR = os.environ.get("DATA_OUTPUT_DIR",  "/tmp/aml-data")
 DEMO_RATE       = int(os.environ.get("DEMO_RATE", "5"))
 
@@ -63,16 +67,16 @@ def kinit() -> None:
     kafka-python은 OS 수준 Kerberos 티켓 캐시(GSSAPI)를 사용하므로
     Producer 생성 전 kinit이 반드시 필요합니다.
     """
-    if not os.path.exists(KEYTAB):
-        print(f"[경고] keytab 파일 없음({KEYTAB}), kinit 생략합니다.", file=sys.stderr)
+    if not os.path.exists(KAFKA_KEYTAB):
+        print(f"[경고] keytab 파일 없음({KAFKA_KEYTAB}), kinit 생략합니다.", file=sys.stderr)
         return
     try:
         subprocess.run(
-            ["kinit", "-kt", KEYTAB, PRINCIPAL],
+            ["kinit", "-kt", KAFKA_KEYTAB, KAFKA_PRINCIPAL],
             check=True,
             capture_output=True,
         )
-        print(f"[Kerberos] kinit 성공: {PRINCIPAL}")
+        print(f"[Kerberos] kinit 성공: {KAFKA_PRINCIPAL}")
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         print(f"[경고] kinit 실패 (기존 티켓 사용 시도): {e}", file=sys.stderr)
 
@@ -90,11 +94,11 @@ def build_producer() -> KafkaProducer:
     kinit()
 
     ssl_context = ssl.create_default_context()
-    if os.path.exists(CA_PEM):
-        ssl_context.load_verify_locations(cafile=CA_PEM)
-        print(f"[SSL] CA 인증서 로드: {CA_PEM}")
+    if os.path.exists(KAFKA_CA_PEM):
+        ssl_context.load_verify_locations(cafile=KAFKA_CA_PEM)
+        print(f"[SSL] CA 인증서 로드: {KAFKA_CA_PEM}")
     else:
-        print(f"[경고] CA PEM 없음({CA_PEM}), SSL 검증 비활성화", file=sys.stderr)
+        print(f"[경고] CA PEM 없음({KAFKA_CA_PEM}), SSL 검증 비활성화", file=sys.stderr)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 

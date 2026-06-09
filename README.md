@@ -63,14 +63,14 @@ Python   : 3.9.x  ← RHEL 9.6 기본 내장, 추가 설치 불필요
 ```
 Step 0  Python 환경   venv 생성 + air-gapped 패키지 설치
 Step 1  환경 설정     config/env.conf 편집 (호스트명 입력)
-Step 2  환경 검증     bash scripts/verify_env.sh
+Step 2  환경 검증     bash scripts/01_verify_env.sh
 Step 3  인프라 구성   bash infra/01_kafka_setup.sh
                       bash infra/02_run_kudu_ddl.sh
 Step 4  Ranger 정책   Ranger UI에서 수동 추가
 Step 5  데이터 생성   python data_gen/generate_aml_data.py
 Step 6  NiFi 설정     브라우저 → nifi/SETUP_GUIDE.md 따라하기
 Step 7  SSB 탐지      bash ssb/render_sql.sh → SSB UI에 붙여넣기
-Step 8  결과 확인     bash scripts/run_impala.sh
+Step 8  결과 확인     bash scripts/02_run_impala.sh
 ```
 
 ---
@@ -98,9 +98,15 @@ sbi-aml-detection-pipeline/
 │   ├── env.customer.conf           SBI 고객 환경 설정 (호스트명만 변경)
 │   └── env.conf → env.internal.conf  현재 활성 환경 (symlink)
 │
+├── conf/                           ← Kafka/Flink 설정 파일 (conf/ 참조)
+│   ├── kafka_jaas.conf             Kafka Kerberos JAAS 템플릿
+│   ├── kafka_kerberos.properties   Kafka SSL+Kerberos 속성 파일
+│   ├── krb5.conf.example           Kerberos 설정 예제
+│   └── flink-conf.yaml.example     Flink 설정 예제
+│
 ├── scripts/
-│   ├── verify_env.sh               환경 자동 검증 (Phase 1)
-│   └── run_impala.sh               Impala 쿼리 실행 래퍼
+│   ├── 01_verify_env.sh            환경 자동 검증 (Phase 1)
+│   └── 02_run_impala.sh            Impala 쿼리 실행 래퍼
 │
 ├── data_gen/
 │   ├── generate_aml_data.py        AML 패턴 포함 거래 데이터 생성 (SDV)
@@ -108,10 +114,11 @@ sbi-aml-detection-pipeline/
 │   └── requirements.txt            Python 패키지 목록 + air-gapped 설치 가이드
 │
 ├── infra/
-│   ├── 01_kafka_setup.sh           Kafka 토픽 생성
+│   ├── 01_kafka_setup.sh           Kafka 토픽 생성 (conf/ 기반 JAAS 렌더링)
 │   ├── 02_kudu_ddl.sql             Kudu 테이블 스키마
 │   ├── 02_run_kudu_ddl.sh          Kudu 테이블 생성 실행
-│   └── 03_ranger_policies.json     Ranger 보안 정책 템플릿
+│   ├── 03_ranger_policies.json     Ranger 보안 정책 템플릿
+│   └── 05_cleanup.sh               전체 인프라 초기화
 │
 ├── nifi/
 │   └── SETUP_GUIDE.md              NiFi Flow 설정 단계별 가이드
@@ -217,7 +224,7 @@ TRUSTSTORE_PW="실제-truststore-패스워드"    # ← 반드시 입력
 
 ```bash
 source config/env.conf       # 환경 변수 로드
-bash scripts/verify_env.sh
+bash scripts/01_verify_env.sh
 ```
 
 모든 항목이 `[OK]`이면 다음 Phase로 진행합니다.
@@ -387,7 +394,7 @@ python ssb/ssb_rest_client.py --list
 
 ```bash
 source config/env.conf
-bash scripts/run_impala.sh
+bash scripts/02_run_impala.sh
 ```
 
 또는 Hue(`https://<hue-host>:8889`)에서 `impala/demo_queries.sql` 내용 실행.
@@ -421,7 +428,7 @@ python data_gen/generate_aml_data.py --rows 500
 python data_gen/kafka_producer.py --rows 500 --rate 3
 
 # 브라우저: Hue에서 쿼리 실행 → Alert 수 증가 확인
-bash scripts/run_impala.sh
+bash scripts/02_run_impala.sh
 ```
 
 ---

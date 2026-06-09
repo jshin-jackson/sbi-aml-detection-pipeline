@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # ================================================================
-# verify_env.sh — 전체 환경 자동 검증 스크립트
+# 01_verify_env.sh — 전체 환경 자동 검증 스크립트
 # Phase 1에서 실행합니다. 모든 항목이 OK여야 다음 Phase로 진행합니다.
+#
+# 사용법:
+#   source config/env.conf
+#   bash scripts/01_verify_env.sh
 # ================================================================
 set -euo pipefail
 
@@ -20,8 +24,8 @@ source "${ROOT_DIR}/config/env.conf"
 PASS=0
 FAIL=0
 
-ok()   { echo "  [OK]  $1"; ((PASS+=1)); }
-fail() { echo "  [FAIL] $1"; ((FAIL+=1)); }
+ok()      { echo "  [OK]   $1"; ((PASS+=1)); }
+fail()    { echo "  [FAIL] $1"; ((FAIL+=1)); }
 section() { echo ""; echo "=== $1 ==="; }
 
 echo ""
@@ -32,11 +36,21 @@ echo "================================================================"
 # ------------------------------------------------------------------
 section "1. 설정 파일 확인"
 # ------------------------------------------------------------------
-[ -n "${KAFKA_BROKERS}" ]   && ok "KAFKA_BROKERS 설정됨"   || fail "KAFKA_BROKERS 미설정"
-[ -n "${KUDU_MASTERS}" ]    && ok "KUDU_MASTERS 설정됨"    || fail "KUDU_MASTERS 미설정"
-[ -n "${SSB_HOST}" ]        && ok "SSB_HOST 설정됨"        || fail "SSB_HOST 미설정"
-[ -n "${IMPALA_HOST}" ]     && ok "IMPALA_HOST 설정됨"     || fail "IMPALA_HOST 미설정"
-[ -n "${PRINCIPAL}" ]       && ok "PRINCIPAL: ${PRINCIPAL}" || fail "PRINCIPAL 미설정"
+[ -n "${KAFKA_BROKERS}" ]   && ok "KAFKA_BROKERS 설정됨"        || fail "KAFKA_BROKERS 미설정"
+[ -n "${KUDU_MASTERS}" ]    && ok "KUDU_MASTERS: ${KUDU_MASTERS}" || fail "KUDU_MASTERS 미설정"
+[ -n "${SSB_HOST}" ]        && ok "SSB_HOST 설정됨"              || fail "SSB_HOST 미설정"
+[ -n "${IMPALA_HOST}" ]     && ok "IMPALA_HOST: ${IMPALA_HOST}"  || fail "IMPALA_HOST 미설정"
+[ -n "${PRINCIPAL}" ]       && ok "PRINCIPAL: ${PRINCIPAL}"      || fail "PRINCIPAL 미설정"
+[ -n "${KAFKA_KEYTAB}" ]    && ok "KAFKA_KEYTAB: ${KAFKA_KEYTAB}" || fail "KAFKA_KEYTAB 미설정"
+
+# conf/ 파일 존재 여부
+for conf_file in \
+    "${ROOT_DIR}/conf/kafka_jaas.conf" \
+    "${ROOT_DIR}/conf/kafka_kerberos.properties"; do
+  [ -f "${conf_file}" ] \
+    && ok "conf 파일 존재: $(basename "${conf_file}")" \
+    || fail "conf 파일 없음: ${conf_file}"
+done
 
 # ------------------------------------------------------------------
 section "2. Kerberos 인증"
@@ -76,23 +90,19 @@ section "4. Kafka 연결 테스트 (SASL_SSL + GSSAPI)"
 # ------------------------------------------------------------------
 KAFKA_TOPICS_CMD="${KAFKA_HOME:-/opt/cloudera/parcels/CDH/lib/kafka}/bin/kafka-topics.sh"
 
-# JAAS 설정 파일 생성 (sibling 프로젝트 패턴)
 TMPDIR_VERIFY=$(mktemp -d)
 trap 'rm -rf "${TMPDIR_VERIFY}"' EXIT
 
 JAAS_CONF="${TMPDIR_VERIFY}/kafka-jaas.conf"
 KAFKA_CLIENT_CONF="${TMPDIR_VERIFY}/kafka-client.properties"
 
-cat > "${JAAS_CONF}" <<EOF
-KafkaClient {
-    com.sun.security.auth.module.Krb5LoginModule required
-    useKeyTab=true
-    storeKey=true
-    keyTab="${KEYTAB}"
-    principal="${PRINCIPAL}";
-};
-EOF
+# conf/kafka_jaas.conf 기반으로 렌더링
+sed \
+  -e "s|\${KAFKA_KEYTAB}|${KAFKA_KEYTAB}|g" \
+  -e "s|\${KAFKA_PRINCIPAL}|${KAFKA_PRINCIPAL}|g" \
+  "${ROOT_DIR}/conf/kafka_jaas.conf" > "${JAAS_CONF}"
 
+# client.properties 생성
 cat > "${KAFKA_CLIENT_CONF}" <<EOF
 security.protocol=SASL_SSL
 sasl.mechanism=GSSAPI
@@ -110,6 +120,21 @@ if "${KAFKA_TOPICS_CMD}" \
     --command-config "${KAFKA_CLIENT_CONF}" \
     --list &>/dev/null; then
   ok "Kafka 연결 성공 (${KAFKA_BROKERS})"
+
+  # 토픽 존재 여부 확인
+  "${KAFKA_TOPICS_CMD}" \
+    --bootstrap-server "${KAFKA_BROKERS}" \
+    --command-config "${KAFKA_CLIENT_CONF}" \
+    --list 2>/dev/null | grep -q "^${KAFKA_TOPIC_TXN}$" \
+    && ok "토픽 존재: ${KAFKA_TOPIC_TXN}" \
+    || fail "토픽 없음: ${KAFKA_TOPIC_TXN} (infra/01_kafka_setup.sh 실행 필요)"
+
+  "${KAFKA_TOPICS_CMD}" \
+    --bootstrap-server "${KAFKA_BROKERS}" \
+    --command-config "${KAFKA_CLIENT_CONF}" \
+    --list 2>/dev/null | grep -q "^${KAFKA_TOPIC_ALERTS}$" \
+    && ok "토픽 존재: ${KAFKA_TOPIC_ALERTS}" \
+    || fail "토픽 없음: ${KAFKA_TOPIC_ALERTS} (infra/01_kafka_setup.sh 실행 필요)"
 else
   fail "Kafka 연결 실패 — 브로커 주소 또는 TRUSTSTORE_PW 확인 필요"
 fi
@@ -132,6 +157,13 @@ section "6. Kudu 접근 테스트"
 # ------------------------------------------------------------------
 if kudu table list "${KUDU_MASTERS}" &>/dev/null; then
   ok "Kudu Masters 접근 성공 (${KUDU_MASTERS})"
+
+  # AML 테이블 존재 여부 확인
+  for table in "default.aml_transactions" "default.aml_alerts" "default.aml_risk_score"; do
+    kudu table list "${KUDU_MASTERS}" 2>/dev/null | grep -q "^${table}$" \
+      && ok "Kudu 테이블 존재: ${table}" \
+      || fail "Kudu 테이블 없음: ${table} (infra/02_run_kudu_ddl.sh 실행 필요)"
+  done
 else
   fail "Kudu Masters 접근 실패 — 호스트 또는 Kerberos 설정 확인 필요"
 fi

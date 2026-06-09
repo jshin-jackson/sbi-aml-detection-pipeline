@@ -64,10 +64,10 @@ fi
 # ------------------------------------------------------------------
 section "1. Kerberos 인증"
 # ------------------------------------------------------------------
-if kinit -kt "${KEYTAB}" "${PRINCIPAL}" 2>/dev/null; then
-  ok "kinit 성공 (${PRINCIPAL})"
+if kinit -kt "${KAFKA_KEYTAB}" "${KAFKA_PRINCIPAL}" 2>/dev/null; then
+  ok "kinit 성공 (${KAFKA_PRINCIPAL})"
 else
-  fail "kinit 실패 — keytab 확인 필요: ${KEYTAB}"
+  fail "kinit 실패 — keytab 확인 필요: ${KAFKA_KEYTAB}"
   exit 1
 fi
 
