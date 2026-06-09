@@ -1,0 +1,30 @@
+# =============================================================================
+# Kerberos krb5.conf 예시 (실제 환경의 /etc/krb5.conf 참고용)
+# ROOT.COMOPS.SITE 렐름 설정 — KDC 주소를 실제 환경에 맞게 수정하세요.
+# =============================================================================
+
+[libdefaults]
+    default_realm = ROOT.COMOPS.SITE
+    dns_lookup_realm = false
+    dns_lookup_kdc = false
+    ticket_lifetime = 24h
+    renew_lifetime = 7d
+    forwardable = true
+    rdns = false
+    udp_preference_limit = 1
+
+[realms]
+    ROOT.COMOPS.SITE = {
+        kdc = ccycloud-1.jshin.root.comops.site:88
+        admin_server = ccycloud-1.jshin.root.comops.site:749
+        default_domain = jshin.root.comops.site
+    }
+
+[domain_realm]
+    .jshin.root.comops.site = ROOT.COMOPS.SITE
+    jshin.root.comops.site = ROOT.COMOPS.SITE
+
+[logging]
+    default = FILE:/var/log/krb5libs.log
+    kdc = FILE:/var/log/krb5kdc.log
+    admin_server = FILE:/var/log/kadmind.log

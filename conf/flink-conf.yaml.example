@@ -1,0 +1,40 @@
+# =============================================================================
+# Apache Flink 1.20.1 Standalone 설정 예시
+# 검증 환경: OpenJDK 21 / RHEL 9.6 / CDP 7.3.1
+#
+# 적용 방법:
+#   cp conf/flink-conf.yaml.example /opt/flink/conf/flink-conf.yaml
+#   # 값을 실제 환경에 맞게 수정 후 Flink 재시작
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# REST / JobManager
+# ---------------------------------------------------------------------------
+rest.address: localhost
+rest.port: 8081
+jobmanager.rpc.address: localhost
+jobmanager.rpc.port: 6123
+
+# ---------------------------------------------------------------------------
+# 메모리 설정 (Demo 최소 설정)
+# ---------------------------------------------------------------------------
+jobmanager.memory.process.size: 1600m
+taskmanager.memory.process.size: 1728m
+taskmanager.numberOfTaskSlots: 4
+parallelism.default: 2
+
+# ---------------------------------------------------------------------------
+# Kerberos 인증
+# ---------------------------------------------------------------------------
+security.kerberos.login.use-ticket-cache: false
+security.kerberos.login.keytab: /opt/cloudera/systest.keytab
+security.kerberos.login.principal: systest@ROOT.COMOPS.SITE
+security.kerberos.login.contexts: Client,KafkaClient
+
+# JAAS 설정 (따옴표 없이 작성 — shell eval 오류 방지)
+env.java.opts: -Djava.security.auth.login.config=/opt/flink/conf/flink-jaas.conf
+
+# ---------------------------------------------------------------------------
+# Java 21 — flink-env.sh 에 별도 설정 권장
+# ---------------------------------------------------------------------------
+# JAVA_HOME=/usr/lib/jvm/java-21  (conf/flink-env.sh 에 추가)
